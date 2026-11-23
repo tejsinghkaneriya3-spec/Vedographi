@@ -1,0 +1,52 @@
+<resources>
+    <string name="app_name">VEDOGRAPHi</string>
+    <string name="brand_tagline">हर शब्द का अपना अंदाज़!</string>
+    <string name="brand_subtitle">Stylish Unicode Text Studio</string>
+    <string name="nav_fonts">Fonts</string>
+    <string name="nav_bios">Bios</string>
+    <string name="nav_usernames">Names</string>
+    <string name="nav_studio">Studio</string>
+    <string name="nav_profile">Profile</string>
+    <string name="input_placeholder">Type Your Text Here...</string>
+    <string name="search_fonts_placeholder">Search 220+ fonts or categories…</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_copy_all">Copy All</string>
+    <string name="action_copied">Copied!</string>
+    <string name="action_share">Share</string>
+    <string name="action_paste">Paste</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_clear_text">Clear Text</string>
+    <string name="action_favorite">Toggle favorite</string>
+    <string name="toggle_theme">Toggle light or dark mode</string>
+    <string name="share_sheet_title">Share Styled Text</string>
+    <string name="share_whatsapp">WhatsApp</string>
+    <string name="share_instagram">Instagram</string>
+    <string name="share_facebook">Facebook</string>
+    <string name="share_telegram">Telegram</string>
+    <string name="share_more">More Apps</string>
+    <string name="hindi_safe_badge">हिंदी Safe</string>
+    <string name="trending_section_title">Trending Styles</string>
+    <string name="all_fonts_section_title">Live Font Previews</string>
+    <string name="scroll_to_top">Scroll to top</string>
+    <string name="empty_favorites_title">No favorite fonts yet</string>
+    <string name="empty_favorites_subtitle">Tap the heart on any font card to pin your go-to styles here.</string>
+    <string name="empty_recent_title">No recently used fonts</string>
+    <string name="empty_recent_subtitle">Copy or share any style and it will appear here automatically.</string>
+    <string name="empty_search_title">No matching fonts found</string>
+    <string name="empty_search_subtitle">Try searching \"cursive\", \"gothic\", \"serif\", \"fancy\", or switch to All.</string>
+
+    <!-- Public Release: Guest Mode, Privacy Policy & Account Deletion -->
+    <string name="continue_as_guest">Continue as Guest</string>
+    <string name="guest_display_name">Guest Creator</string>
+    <string name="guest_mode_badge">Guest Mode • Offline DataStore</string>
+    <string name="guest_mode_subtitle">Styles, favorites &amp; creations are saved locally on this device. Sign in with Google anytime to back up to the cloud.</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="privacy_and_about">Privacy Policy &amp; About</string>
+    <string name="privacy_policy_title">Privacy Policy</string>
+    <string name="about_app_title">About VEDOGRAPHi</string>
+    <string name="support_contact_email">support@vedographi.app</string>
+    <string name="account_and_privacy_title">Account &amp; Privacy</string>
+    <string name="clear_local_data">Clear Local Cache &amp; Data</string>
+    <string name="delete_cloud_account">Delete Account &amp; Cloud Data</string>
+    <string name="account_deleted_confirmation">Your account and all cloud &amp; local data have been permanently deleted.</string>
+</resources>

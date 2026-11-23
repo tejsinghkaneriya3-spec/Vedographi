@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Synced VEDOGRAPHi user preferences, favorites, and recently used fonts",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Optional display name"
+        },
+        "darkTheme": {
+          "type": "boolean",
+          "description": "Dark mode UI preference"
+        },
+        "favoriteFontIds": {
+          "type": "array",
+          "description": "List of favorited Unicode font IDs"
+        },
+        "recentFontIds": {
+          "type": "array",
+          "description": "List of recently copied Unicode font IDs"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Update server timestamp (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "userId",
+        "darkTheme",
+        "favoriteFontIds",
+        "recentFontIds",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavedCreation": {
+      "title": "SavedCreation",
+      "description": "User-authored Unicode text creation (Bio, Username, Decorated, Name, Status, Occasion)",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Creation title or category label"
+        },
+        "content": {
+          "type": "string",
+          "description": "Copyable Unicode styled text content"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "BIO",
+            "USERNAME",
+            "DECORATED",
+            "NAME",
+            "STATUS",
+            "OCCASION"
+          ],
+          "description": "Creation type"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Update server timestamp (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "content",
+        "kind",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Per-user synced VEDOGRAPHi profile and font preferences"
+    },
+    "/users/{userId}/creations/{creationId}": {
+      "schema": {
+        "$ref": "#/entities/SavedCreation"
+      },
+      "description": "Per-user saved styled text creations in My Text Studio"
+    }
+  }
+}
