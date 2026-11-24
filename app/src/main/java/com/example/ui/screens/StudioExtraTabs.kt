@@ -32,10 +32,8 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +41,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -54,8 +53,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,9 +68,19 @@ import com.example.domain.TextStudioCatalog
 import com.example.ui.FontPreviewItem
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.FontPreviewCard
+import com.example.ui.components.VedographiContentCard
+import com.example.ui.components.VedographiDefaults
+import com.example.ui.components.VedographiHeroCard
+import com.example.ui.components.VedographiPillBadge
+import com.example.ui.theme.CrispWhite
 import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.NeonOrchid
+import com.example.ui.theme.RoyalViolet
+import com.example.ui.theme.WhatsAppDarkBg
+import com.example.ui.theme.WhatsAppDarkSurface
 import com.example.ui.theme.WhatsAppGreen
+import com.example.ui.theme.WhatsAppOnGreen
 
 @Composable
 fun NameDesignerTab(
@@ -106,71 +113,67 @@ fun NameDesignerTab(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item(key = "name_preview") {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(
-                    1.5.dp,
-                    Brush.linearGradient(listOf(ElectricViolet, NeonOrchid))
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Stylish Name Designer",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        SelectionContainer {
-                            Text(
-                                text = designedOutput,
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontSize = 21.sp,
-                                    lineHeight = 30.sp,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
+            VedographiHeroCard(contentPadding = PaddingValues(16.dp)) {
+                Text(
+                    text = "Stylish Name Designer",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = designedOutput,
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontSize = 21.sp,
+                                lineHeight = 30.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(16.dp)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = { onCopyText(designedOutput) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(VedographiDefaults.ButtonHeight)
+                            .testTag("copy_designed_name_btn")
                     ) {
-                        Button(
-                            onClick = { onCopyText(designedOutput) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("copy_designed_name_btn")
-                        ) {
-                            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Copy Name", maxLines = 1, softWrap = false)
-                        }
-                        OutlinedButton(
-                            onClick = { onSaveCreation(designedOutput) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Icon(Icons.Filled.BookmarkAdd, contentDescription = "Save name", modifier = Modifier.size(18.dp))
-                        }
-                        OutlinedButton(
-                            onClick = { onShareText(designedOutput) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Icon(Icons.Filled.Share, contentDescription = "Share name", modifier = Modifier.size(18.dp))
-                        }
+                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Copy Name", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                    }
+                    OutlinedButton(
+                        onClick = { onSaveCreation(designedOutput) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+                    ) {
+                        Icon(Icons.Filled.BookmarkAdd, contentDescription = "Save name", modifier = Modifier.size(18.dp))
+                    }
+                    OutlinedButton(
+                        onClick = { onShareText(designedOutput) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share name", modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -183,7 +186,8 @@ fun NameDesignerTab(
                     onValueChange = onNameChange,
                     label = { Text("Your Name (English or हिंदी)") },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                    colors = VedographiDefaults.textFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -191,7 +195,8 @@ fun NameDesignerTab(
                     onValueChange = onSubtitleChange,
                     label = { Text("Optional Tagline / Title (e.g. Official, King)") },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                    colors = VedographiDefaults.textFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -199,18 +204,22 @@ fun NameDesignerTab(
 
         item(key = "name_fonts") {
             Column {
-                Text("Calligraphy & Font", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Calligraphy & Font",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(nameFonts, key = { it.id }) { spec ->
+                        val selected = spec.id == selectedFontId
                         FilterChip(
-                            selected = spec.id == selectedFontId,
+                            selected = selected,
                             onClick = { onSelectFont(spec.id) },
-                            label = { Text(spec.transform(name.ifBlank { "Name" })) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White
-                            )
+                            label = { Text(spec.transform(name.ifBlank { "Name" }), style = MaterialTheme.typography.labelLarge) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
@@ -219,20 +228,27 @@ fun NameDesignerTab(
 
         item(key = "name_wings") {
             Column {
-                Text("Crown & Wing Frame", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Crown & Wing Frame",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(StudioGenerators.wingPresets, key = { it.id }) { wing ->
+                        val selected = wing.id == selectedWingId
                         FilterChip(
-                            selected = wing.id == selectedWingId,
+                            selected = selected,
                             onClick = { onSelectWing(wing.id) },
                             label = {
-                                Text(if (wing.left.isEmpty()) wing.label else "${wing.left.trim()} ${wing.label}")
+                                Text(
+                                    if (wing.left.isEmpty()) wing.label else "${wing.left.trim()} ${wing.label}",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
                             },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White
-                            )
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
@@ -241,18 +257,22 @@ fun NameDesignerTab(
 
         item(key = "name_badges") {
             Column {
-                Text("Accent Badge", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Accent Badge",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(badges) { badge ->
+                        val selected = badge == selectedBadge
                         FilterChip(
-                            selected = badge == selectedBadge,
+                            selected = selected,
                             onClick = { onSelectBadge(badge) },
-                            label = { Text(badge.ifEmpty { "None" }) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White
-                            )
+                            label = { Text(badge.ifEmpty { "None" }, style = MaterialTheme.typography.labelLarge) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
@@ -289,13 +309,19 @@ fun WhatsAppStatusDesignerTab(
     ) {
         item(key = "wa_moods") {
             Column {
-                Text("Quick Status Moods", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Quick Status Moods",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(TextStudioCatalog.waStatusMoods) { (mood, text) ->
                         AssistChip(
                             onClick = { onApplyMoodPreset(mood, text) },
-                            label = { Text(mood) }
+                            label = { Text(mood, style = MaterialTheme.typography.labelLarge) },
+                            colors = VedographiDefaults.assistChipColors(),
+                            border = VedographiDefaults.assistChipBorder()
                         )
                     }
                 }
@@ -304,8 +330,8 @@ fun WhatsAppStatusDesignerTab(
 
         item(key = "wa_preview") {
             Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = Color(0xFF0B1F1A),
+                shape = RoundedCornerShape(VedographiDefaults.HeroCornerRadius),
+                color = WhatsAppDarkBg,
                 border = BorderStroke(1.5.dp, WhatsAppGreen.copy(alpha = 0.65f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -329,22 +355,20 @@ fun WhatsAppStatusDesignerTab(
 
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFF132D26),
+                        color = WhatsAppDarkSurface,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         SelectionContainer {
                             Text(
                                 text = designedStatus,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    lineHeight = 25.sp
-                                ),
-                                color = Color.White,
+                                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+                                color = CrispWhite,
                                 modifier = Modifier.padding(14.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -352,53 +376,56 @@ fun WhatsAppStatusDesignerTab(
                     ) {
                         Button(
                             onClick = { onCopyText(designedStatus) },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.primaryButtonColors(),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .height(VedographiDefaults.ButtonHeight)
                                 .testTag("copy_wa_status_btn")
                         ) {
                             Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Copy", maxLines = 1, softWrap = false)
+                            Text("Copy", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
                         }
                         Button(
                             onClick = { onShareWhatsApp(designedStatus) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.primaryButtonColors(
                                 containerColor = WhatsAppGreen,
-                                contentColor = Color(0xFF042214)
+                                contentColor = WhatsAppOnGreen
                             ),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .height(VedographiDefaults.ButtonHeight)
                                 .testTag("share_wa_direct_btn")
                         ) {
                             Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("WhatsApp", maxLines = 1, softWrap = false)
+                            Text("WhatsApp", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
                         }
                         OutlinedButton(
                             onClick = { onSaveCreation(designedStatus) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(48.dp)
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            border = BorderStroke(1.dp, WhatsAppGreen.copy(alpha = 0.45f)),
+                            modifier = Modifier.height(VedographiDefaults.ButtonHeight)
                         ) {
                             Icon(
                                 Icons.Filled.BookmarkAdd,
                                 contentDescription = "Save status",
-                                tint = Color.White,
+                                tint = CrispWhite,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
                         OutlinedButton(
                             onClick = { onShareText(designedStatus) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(48.dp)
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            border = BorderStroke(1.dp, WhatsAppGreen.copy(alpha = 0.45f)),
+                            modifier = Modifier.height(VedographiDefaults.ButtonHeight)
                         ) {
                             Icon(
                                 Icons.Filled.Share,
                                 contentDescription = "Share status",
-                                tint = Color.White,
+                                tint = CrispWhite,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -414,7 +441,8 @@ fun WhatsAppStatusDesignerTab(
                     onValueChange = onHeaderTagChange,
                     label = { Text("Status Header Badge") },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                    colors = VedographiDefaults.textFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -423,7 +451,8 @@ fun WhatsAppStatusDesignerTab(
                     label = { Text("Status Text (English or हिंदी)") },
                     minLines = 3,
                     maxLines = 5,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                    colors = VedographiDefaults.textFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -431,14 +460,27 @@ fun WhatsAppStatusDesignerTab(
 
         item(key = "wa_fonts") {
             Column {
-                Text("Status Font", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Status Font",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(StudioGenerators.bioFonts) { spec ->
+                        val selected = spec.id == selectedFontId
                         FilterChip(
-                            selected = spec.id == selectedFontId,
+                            selected = selected,
                             onClick = { onSelectFont(spec.id) },
-                            label = { Text(spec.transform(spec.name.split(" ").first())) }
+                            label = {
+                                Text(
+                                    spec.transform(spec.name.split(" ").first()),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
@@ -446,24 +488,45 @@ fun WhatsAppStatusDesignerTab(
         }
 
         item(key = "wa_dividers") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Status Border Divider", style = MaterialTheme.typography.titleMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Status Border Divider",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(StudioGenerators.bioDividers) { index, pair ->
+                        val selected = index == selectedDividerIdx
                         FilterChip(
-                            selected = index == selectedDividerIdx,
+                            selected = selected,
                             onClick = { onSelectDivider(index) },
-                            label = { Text(pair.first) }
+                            label = { Text(pair.first, style = MaterialTheme.typography.labelLarge) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Include VEDOGRAPHi signature footer", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = showFooter, onCheckedChange = { onToggleFooter() })
+                VedographiContentCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Include VEDOGRAPHi signature footer",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Switch(
+                            checked = showFooter,
+                            onCheckedChange = { onToggleFooter() },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = CrispWhite,
+                                checkedTrackColor = RoyalViolet
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -493,15 +556,16 @@ fun OccasionsTab(
         item(key = "occ_categories") {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(OccasionCategory.entries) { category ->
+                    val selected = category == selectedCategory
                     FilterChip(
-                        selected = category == selectedCategory,
+                        selected = selected,
                         onClick = { onSelectCategory(category) },
-                        label = { Text(category.label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White
-                        ),
-                        modifier = Modifier.testTag("occasion_chip_${category.name}")
+                        label = { Text(category.label, style = MaterialTheme.typography.labelLarge) },
+                        colors = VedographiDefaults.filterChipColors(),
+                        border = VedographiDefaults.filterChipBorder(selected),
+                        modifier = Modifier
+                            .height(42.dp)
+                            .testTag("occasion_chip_${category.name}")
                     )
                 }
             }
@@ -514,77 +578,75 @@ fun OccasionsTab(
             val sep = StudioGenerators.separatorPresets.first()
             val rendered = StudioGenerators.decorateText(item.text, font, wing, border, sep)
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            VedographiContentCard(contentPadding = PaddingValues(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    IconButton(
+                        onClick = { onSaveCreation(item.title, rendered) },
+                        modifier = Modifier.minimumInteractiveComponentSize()
                     ) {
-                        Text(
-                            text = item.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        IconButton(
-                            onClick = { onSaveCreation(item.title, rendered) },
-                            modifier = Modifier.minimumInteractiveComponentSize()
-                        ) {
-                            Icon(Icons.Filled.BookmarkAdd, contentDescription = "Save template")
-                        }
+                        Icon(Icons.Filled.BookmarkAdd, contentDescription = "Save template")
                     }
+                }
 
-                    SelectionContainer {
-                        Text(
-                            text = rendered,
-                            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                SelectionContainer {
+                    Text(
+                        text = rendered,
+                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { onCopyText(rendered) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors(),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(VedographiDefaults.ButtonHeight)
                     ) {
-                        Button(
-                            onClick = { onCopyText(rendered) },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                        ) {
-                            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Copy", maxLines = 1, softWrap = false)
-                        }
-                        OutlinedButton(
-                            onClick = { onCustomizeOccasion(item) },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                        ) {
-                            Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Customize", maxLines = 1, softWrap = false)
-                        }
-                        OutlinedButton(
-                            onClick = { onShareText(rendered) },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.height(44.dp)
-                        ) {
-                            Icon(Icons.Filled.Share, contentDescription = "Share", modifier = Modifier.size(17.dp))
-                        }
+                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Copy", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                    }
+                    OutlinedButton(
+                        onClick = { onCustomizeOccasion(item) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(VedographiDefaults.ButtonHeight)
+                    ) {
+                        Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Customize", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                    }
+                    OutlinedButton(
+                        onClick = { onShareText(rendered) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share", modifier = Modifier.size(17.dp))
                     }
                 }
             }
@@ -634,9 +696,9 @@ fun SavedAndRecentTab(
     ) {
         item(key = "cloud_backup_card") {
             Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+                shape = RoundedCornerShape(VedographiDefaults.CardCornerRadius),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.72f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -659,7 +721,7 @@ fun SavedAndRecentTab(
                             contentDescription = null,
                             tint = when {
                                 isGuest || !isOnline -> NeonOrchid
-                                isCloudSynced -> WhatsAppGreen
+                                isCloudSynced -> EmeraldSuccess
                                 else -> ElectricViolet
                             },
                             modifier = Modifier.size(22.dp)
@@ -700,10 +762,12 @@ fun SavedAndRecentTab(
                             }
                         },
                         enabled = !isBackingUp,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(enabled = !isBackingUp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         modifier = Modifier
-                            .height(40.dp)
+                            .height(VedographiDefaults.ButtonHeight)
                             .testTag("studio_backup_now_btn")
                     ) {
                         if (isBackingUp) {
@@ -718,6 +782,7 @@ fun SavedAndRecentTab(
                                     isOnline -> "Backup"
                                     else -> "Cached"
                                 },
+                                style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -738,18 +803,22 @@ fun SavedAndRecentTab(
                     Icon(
                         imageVector = Icons.Filled.History,
                         contentDescription = null,
-                        tint = ElectricViolet,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Offline Cache (${cachedStyles.size})",
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 if (cachedStyles.isNotEmpty()) {
-                    TextButton(onClick = onClearCachedStyles) {
-                        Text("Clear")
+                    TextButton(
+                        onClick = onClearCachedStyles,
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Text("Clear", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -760,14 +829,14 @@ fun SavedAndRecentTab(
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val labels = listOf("All", "Templates", "Styles & Fonts")
                     itemsIndexed(labels) { idx, label ->
+                        val selected = cacheFilterIdx == idx
                         FilterChip(
-                            selected = cacheFilterIdx == idx,
+                            selected = selected,
                             onClick = { cacheFilterIdx = idx },
-                            label = { Text(label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White
-                            )
+                            label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
@@ -791,8 +860,13 @@ fun SavedAndRecentTab(
                 )
             }
         }
+
         item {
-            Text("Saved Creations", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Saved Creations",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
         if (savedCreations.isEmpty()) {
             item {
@@ -804,55 +878,54 @@ fun SavedAndRecentTab(
             }
         } else {
             items(savedCreations, key = { it.id }) { item ->
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                VedographiContentCard(contentPadding = PaddingValues(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${item.kind} • ${item.title}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        IconButton(
+                            onClick = { onDeleteCreation(item.id) },
+                            modifier = Modifier.minimumInteractiveComponentSize()
                         ) {
-                            Text(
-                                text = "${item.kind} • ${item.title}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            IconButton(
-                                onClick = { onDeleteCreation(item.id) },
-                                modifier = Modifier.minimumInteractiveComponentSize()
-                            ) {
-                                Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete")
-                            }
+                            Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete")
                         }
-                        SelectionContainer {
-                            Text(
-                                text = item.content,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                    }
+                    SelectionContainer {
+                        Text(
+                            text = item.content,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(
+                            onClick = { onCopyText(item.content) },
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.outlinedButtonColors(),
+                            border = VedographiDefaults.outlinedButtonBorder(),
+                            modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+                        ) {
+                            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Copy", style = MaterialTheme.typography.labelLarge)
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { onCopyText(item.content) },
-                                modifier = Modifier.height(40.dp)
-                            ) {
-                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Copy")
-                            }
-                            OutlinedButton(
-                                onClick = { onShareText(item.content) },
-                                modifier = Modifier.height(40.dp)
-                            ) {
-                                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Share")
-                            }
+                        OutlinedButton(
+                            onClick = { onShareText(item.content) },
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.outlinedButtonColors(),
+                            border = VedographiDefaults.outlinedButtonBorder(),
+                            modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Share", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -861,7 +934,11 @@ fun SavedAndRecentTab(
 
         item {
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Favorite Fonts (${favoriteFonts.size})", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Favorite Fonts (${favoriteFonts.size})",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
         if (favoriteFonts.isEmpty()) {
             item {
@@ -889,10 +966,17 @@ fun SavedAndRecentTab(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Recently Used (${recentFonts.size})", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Recently Used (${recentFonts.size})",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
                 if (recentFonts.isNotEmpty()) {
-                    TextButton(onClick = onClearRecents) {
-                        Text("Clear")
+                    TextButton(
+                        onClick = onClearRecents,
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Text("Clear", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -929,115 +1013,104 @@ fun CachedStyleCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("cached_style_card_${entry.id}")
+    VedographiContentCard(
+        contentPadding = PaddingValues(16.dp),
+        modifier = modifier.testTag("cached_style_card_${entry.id}")
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)
-                    ) {
-                        Text(
-                            text = entry.source.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = entry.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.minimumInteractiveComponentSize()
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.DeleteOutline,
-                        contentDescription = "Remove cached style",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            if (entry.inputText.isNotBlank() && entry.inputText != entry.styledText) {
-                Spacer(modifier = Modifier.height(4.dp))
+                VedographiPillBadge(text = entry.source.label)
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Input: ${entry.inputText}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = entry.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            SelectionContainer {
-                Text(
-                    text = entry.styledText,
-                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
-                    color = MaterialTheme.colorScheme.onSurface
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.minimumInteractiveComponentSize()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.DeleteOutline,
+                    contentDescription = "Remove cached style",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
 
-            Spacer(modifier = Modifier.height(10.dp))
+        if (entry.inputText.isNotBlank() && entry.inputText != entry.styledText) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Input: ${entry.inputText}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Spacer(modifier = Modifier.height(6.dp))
+
+        SelectionContainer {
+            Text(
+                text = entry.styledText,
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = onCopy,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.primaryButtonColors(),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(VedographiDefaults.ButtonHeight)
             ) {
-                Button(
-                    onClick = onCopy,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                ) {
-                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy", maxLines = 1, softWrap = false)
-                }
-                OutlinedButton(
-                    onClick = onReuse,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                ) {
-                    Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Reuse", maxLines = 1, softWrap = false)
-                }
-                OutlinedButton(
-                    onClick = onShare,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(44.dp)
-                ) {
-                    Icon(Icons.Filled.Share, contentDescription = "Share cached style", modifier = Modifier.size(17.dp))
-                }
+                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Copy", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            }
+            OutlinedButton(
+                onClick = onReuse,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.outlinedButtonColors(),
+                border = VedographiDefaults.outlinedButtonBorder(),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(VedographiDefaults.ButtonHeight)
+            ) {
+                Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Reuse", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            }
+            OutlinedButton(
+                onClick = onShare,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.outlinedButtonColors(),
+                border = VedographiDefaults.outlinedButtonBorder(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+            ) {
+                Icon(Icons.Filled.Share, contentDescription = "Share cached style", modifier = Modifier.size(17.dp))
             }
         }
     }

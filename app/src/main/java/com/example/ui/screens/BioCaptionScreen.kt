@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -38,6 +37,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -46,14 +46,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.domain.BioCategory
 import com.example.domain.BioPlatform
 import com.example.domain.StudioGenerators
-import com.example.ui.theme.ElectricViolet
+import com.example.ui.components.VedographiContentCard
+import com.example.ui.components.VedographiDefaults
+import com.example.ui.components.VedographiHeroCard
+import com.example.ui.theme.CrispWhite
 import com.example.ui.theme.NeonOrchid
 import com.example.ui.theme.RoyalViolet
 
@@ -111,7 +113,7 @@ fun BioCaptionScreen(
                 ) {
                     Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Shuffle")
+                    Text("Shuffle", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -124,9 +126,10 @@ fun BioCaptionScreen(
                         selected = platform == selectedPlatform,
                         onClick = { onSelectPlatform(platform) },
                         shape = SegmentedButtonDefaults.itemShape(index = idx, count = BioPlatform.entries.size),
+                        colors = VedographiDefaults.segmentedButtonColors(),
                         modifier = Modifier.testTag("bio_platform_${platform.name}")
                     ) {
-                        Text("${platform.label} Bio")
+                        Text("${platform.label} Bio", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -140,11 +143,10 @@ fun BioCaptionScreen(
                     FilterChip(
                         selected = selected,
                         onClick = { onSelectCategory(cat) },
-                        label = { Text(cat.label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White
-                        )
+                        label = { Text(cat.label, style = MaterialTheme.typography.labelLarge) },
+                        colors = VedographiDefaults.filterChipColors(),
+                        border = VedographiDefaults.filterChipBorder(selected),
+                        modifier = Modifier.height(42.dp)
                     )
                 }
             }
@@ -152,106 +154,101 @@ fun BioCaptionScreen(
 
         // Live Profile Mockup Preview
         item(key = "bio_preview_card") {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(
-                    1.5.dp,
-                    Brush.linearGradient(listOf(ElectricViolet, NeonOrchid))
-                ),
-                shadowElevation = 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(listOf(RoyalViolet, NeonOrchid))
-                                )
-                        ) {
-                            Text(
-                                text = headline.take(1).uppercase().ifEmpty { "V" },
-                                style = MaterialTheme.typography.titleLarge,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+            VedographiHeroCard(contentPadding = PaddingValues(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(listOf(RoyalViolet, NeonOrchid))
                             )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "${selectedPlatform.label} Profile Preview",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (selectedPlatform == BioPlatform.INSTAGRAM) {
-                                    "@vedographi.official • 150 char limit friendly"
-                                } else {
-                                    "Facebook Intro • Clean multi-line layout"
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        SelectionContainer {
-                            Text(
-                                text = generatedPreview,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(14.dp)
-                            )
-                        }
+                        Text(
+                            text = headline.take(1).uppercase().ifEmpty { "V" },
+                            style = MaterialTheme.typography.titleLarge,
+                            color = CrispWhite,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "${selectedPlatform.label} Profile Preview",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (selectedPlatform == BioPlatform.INSTAGRAM) {
+                                "@vedographi.official • 150 char limit friendly"
+                            } else {
+                                "Facebook Intro • Clean multi-line layout"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = generatedPreview,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(14.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = { onCopyBio(generatedPreview) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(VedographiDefaults.ButtonHeight)
+                            .testTag("copy_bio_btn")
                     ) {
-                        Button(
-                            onClick = { onCopyBio(generatedPreview) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("copy_bio_btn")
-                        ) {
-                            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Copy Bio")
-                        }
-                        OutlinedButton(
-                            onClick = { onSaveBio(generatedPreview) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .height(48.dp)
-                                .testTag("save_bio_btn")
-                        ) {
-                            Icon(Icons.Filled.BookmarkAdd, contentDescription = "Save bio", modifier = Modifier.size(18.dp))
-                        }
-                        OutlinedButton(
-                            onClick = { onShareBio(generatedPreview) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .height(48.dp)
-                                .testTag("share_bio_btn")
-                        ) {
-                            Icon(Icons.Filled.Share, contentDescription = "Share bio", modifier = Modifier.size(18.dp))
-                        }
+                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Copy Bio", style = MaterialTheme.typography.labelLarge)
+                    }
+                    OutlinedButton(
+                        onClick = { onSaveBio(generatedPreview) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        modifier = Modifier
+                            .height(VedographiDefaults.ButtonHeight)
+                            .testTag("save_bio_btn")
+                    ) {
+                        Icon(Icons.Filled.BookmarkAdd, contentDescription = "Save bio", modifier = Modifier.size(18.dp))
+                    }
+                    OutlinedButton(
+                        onClick = { onShareBio(generatedPreview) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        modifier = Modifier
+                            .height(VedographiDefaults.ButtonHeight)
+                            .testTag("share_bio_btn")
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share bio", modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -265,7 +262,8 @@ fun BioCaptionScreen(
                     onValueChange = onHeadlineChange,
                     label = { Text("Headline / Name") },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                    colors = VedographiDefaults.textFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -274,7 +272,8 @@ fun BioCaptionScreen(
                     label = { Text("Bio Lines / Caption (English or हिंदी)") },
                     minLines = 3,
                     maxLines = 5,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                    colors = VedographiDefaults.textFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -294,7 +293,15 @@ fun BioCaptionScreen(
                         FilterChip(
                             selected = selected,
                             onClick = { onSelectFont(spec.id) },
-                            label = { Text(spec.transform(spec.name.split(" ").first())) }
+                            label = {
+                                Text(
+                                    spec.transform(spec.name.split(" ").first()),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
@@ -311,28 +318,38 @@ fun BioCaptionScreen(
                 )
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(StudioGenerators.bioDividers) { index, pair ->
+                        val selected = index == selectedDividerIdx
                         FilterChip(
-                            selected = index == selectedDividerIdx,
+                            selected = selected,
                             onClick = { onSelectDivider(index) },
-                            label = { Text(pair.first) }
+                            label = { Text(pair.first, style = MaterialTheme.typography.labelLarge) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Add ✦ sparkle bullets to lines",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Switch(
-                        checked = includeBullets,
-                        onCheckedChange = { onToggleBullets() }
-                    )
+                VedographiContentCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Add ✦ sparkle bullets to lines",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Switch(
+                            checked = includeBullets,
+                            onCheckedChange = { onToggleBullets() },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = CrispWhite,
+                                checkedTrackColor = RoyalViolet
+                            )
+                        )
+                    }
                 }
             }
         }

@@ -44,9 +44,13 @@
     <string name="privacy_and_about">Privacy Policy &amp; About</string>
     <string name="privacy_policy_title">Privacy Policy</string>
     <string name="about_app_title">About VEDOGRAPHi</string>
-    <string name="support_contact_email">support@vedographi.app</string>
-    <string name="account_and_privacy_title">Account &amp; Privacy</string>
+    <string name="share_app_title">Share VEDOGRAPHi App</string>
+    <string name="app_share_url">https://ais-pre-t3mha6tr7othtf2pmhons7-524342901295.asia-southeast1.run.app</string>
+    <string name="support_contact_email">tejsinghkaneriya3@gmail.com</string>
+    <string name="account_and_privacy_title">Settings, Privacy &amp; Info</string>
     <string name="clear_local_data">Clear Local Cache &amp; Data</string>
     <string name="delete_cloud_account">Delete Account &amp; Cloud Data</string>
     <string name="account_deleted_confirmation">Your account and all cloud &amp; local data have been permanently deleted.</string>
+    <string name="hindi_calligraphy_title">हिंदी कैलीग्राफी • Hindi Calligraphy</string>
+    <string name="share_calligraphy_card">Share Card</string>
 </resources>

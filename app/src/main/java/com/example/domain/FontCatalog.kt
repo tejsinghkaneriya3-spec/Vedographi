@@ -723,6 +723,24 @@ object FontCatalog {
         },
         wrapped("fancy_desi_swastik", "Shubh Swag", FontCategory.FANCY, "ॐ✦ ", " ✦ॐ") {
             UnicodeFontEngine.serifBold(it)
+        },
+        wrapped("hindi_kalash_royal", "Kalash Royal", FontCategory.FANCY, "🪷꧁ ", " ꧂🪷", trending = true, badge = "HINDI") {
+            UnicodeFontEngine.boldScript(it)
+        },
+        wrapped("hindi_morpankh_script", "Morpankh Calligraphy", FontCategory.FANCY, "🦚❦ ", " ❦🦚", badge = "HINDI") {
+            UnicodeFontEngine.scriptCursive(it)
+        },
+        wrapped("hindi_shlok_gold", "Shlok Gold Frame", FontCategory.FANCY, "॥ ॐ ", " ॐ ॥", badge = "HINDI") {
+            UnicodeFontEngine.serifBoldItalic(it)
+        },
+        wrapped("hindi_diya_festive", "Diya Festive Glow", FontCategory.FANCY, "🪔✨ ", " ✨🪔", badge = "HINDI") {
+            UnicodeFontEngine.sansBoldItalic(it)
+        },
+        wrapped("hindi_shayari_quote", "Shayari Calligraphy", FontCategory.FANCY, "❝❦ ", " ❦❞", badge = "HINDI") {
+            UnicodeFontEngine.serifItalic(it)
+        },
+        wrapped("hindi_tilak_swag", "Tilak Swag", FontCategory.FANCY, "🚩彡 ", " 彡🚩", badge = "HINDI") {
+            UnicodeFontEngine.sansBold(it)
         }
     )
 

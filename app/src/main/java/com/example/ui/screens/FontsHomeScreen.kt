@@ -28,10 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CopyAll
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Translate
@@ -39,21 +41,16 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -71,7 +68,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -80,18 +79,29 @@ import com.example.domain.FontCategory
 import com.example.ui.FontPreviewItem
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.FontPreviewCard
+import com.example.ui.components.VedographiDefaults
+import com.example.ui.components.VedographiHeroCard
+import com.example.ui.components.VedographiPillBadge
+import com.example.ui.components.VedographiSectionHeader
+import com.example.ui.theme.CalligraphyCanvasEnd
+import com.example.ui.theme.CalligraphyCanvasMid
+import com.example.ui.theme.CalligraphyCanvasStart
+import com.example.ui.theme.CrispWhite
 import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.HindiCalligraphyPreset
 import com.example.ui.theme.NeonOrchid
 import com.example.ui.theme.RoyalViolet
 import kotlinx.coroutines.launch
 
 private val QuickSamplePhrases = listOf(
     "हर शब्द का अपना अंदाज़!",
-    "नमस्ते India",
-    "VEDOGRAPHi",
+    "ॐ नमः शिवाय ✨",
+    "दिल की बात सुनो",
+    "अपना टाइम आएगा 🔥",
+    "शुभ प्रभात • नमस्ते",
     "Royal Attitude",
-    "Dream Big 2026"
+    "VEDOGRAPHi"
 )
 
 @Composable
@@ -112,7 +122,11 @@ fun FontsHomeScreen(
     onCopyItem: (FontPreviewItem) -> Unit,
     onToggleFavorite: (String) -> Unit,
     onShareItem: (FontPreviewItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectedCalligraphyPreset: HindiCalligraphyPreset = HindiCalligraphyPreset.KALAM,
+    onSelectCalligraphyPreset: (HindiCalligraphyPreset) -> Unit = {},
+    onCopyCalligraphyText: (String) -> Unit = {},
+    onShareCalligraphyCard: () -> Unit = {}
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -133,264 +147,404 @@ fun FontsHomeScreen(
         ) {
             // 1. Large Prominent Text Input Box at the top
             item(key = "input_hero") {
+                VedographiHeroCard(
+                    contentPadding = PaddingValues(16.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Live Style Studio",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        AnimatedVisibility(visible = hasHindiInInput) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = EmeraldSuccess.copy(alpha = 0.16f),
+                                border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Translate,
+                                        contentDescription = null,
+                                        tint = EmeraldSuccess,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.hindi_safe_badge),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = EmeraldSuccess
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = inputText,
+                        onValueChange = onInputChange,
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.input_placeholder),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        },
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 17.sp,
+                            lineHeight = 25.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        minLines = 2,
+                        maxLines = 4,
+                        shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                        colors = VedographiDefaults.textFieldColors(),
+                        trailingIcon = {
+                            if (inputText.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onClearText()
+                                    },
+                                    modifier = Modifier
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("clear_input_btn")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = stringResource(R.string.action_clear)
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("main_text_input")
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Character counter & responsive 3-button action bar (Paste / Clear Text / Copy All)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isInputEmpty) {
+                                "220+ styles ready"
+                            } else {
+                                "${inputText.length} chars • Live transform"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (inputText.isNotEmpty()) {
+                            Text(
+                                text = "Tap any card to copy",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                onPasteClick()
+                            },
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.outlinedButtonColors(),
+                            border = VedographiDefaults.outlinedButtonBorder(),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(VedographiDefaults.ButtonHeight)
+                                .testTag("paste_input_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.ContentPaste,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.action_paste),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onClearText()
+                            },
+                            enabled = inputText.isNotEmpty(),
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.outlinedButtonColors(),
+                            border = VedographiDefaults.outlinedButtonBorder(enabled = inputText.isNotEmpty()),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(VedographiDefaults.ButtonHeight)
+                                .testTag("clear_text_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Clear,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.action_clear_text),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                onCopyAllClick()
+                            },
+                            enabled = filteredItems.isNotEmpty(),
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.primaryButtonColors(),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(VedographiDefaults.ButtonHeight)
+                                .testTag("copy_all_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CopyAll,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.action_copy_all),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Quick Sample Chips (English + Hindi)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(QuickSamplePhrases) { phrase ->
+                            AssistChip(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    onInputChange(phrase)
+                                },
+                                label = {
+                                    Text(
+                                        text = phrase,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = selectedCalligraphyPreset.fontFamily
+                                        ),
+                                        maxLines = 1
+                                    )
+                                },
+                                colors = VedographiDefaults.assistChipColors(),
+                                border = VedographiDefaults.assistChipBorder()
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 1B. Hindi Calligraphy Studio Card
+            item(key = "hindi_calligraphy_studio") {
+                val calligraphyDisplay = inputText.ifBlank { stringResource(R.string.brand_tagline) }
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.HeroCornerRadius),
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(
-                        width = 1.75.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(ElectricViolet, NeonOrchid, RoyalViolet)
+                        1.25.dp,
+                        Brush.linearGradient(
+                            listOf(
+                                NeonOrchid.copy(alpha = 0.75f),
+                                ElectricViolet.copy(alpha = 0.75f)
+                            )
                         )
                     ),
-                    shadowElevation = 10.dp,
+                    tonalElevation = 3.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
+                        .testTag("hindi_calligraphy_card")
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(16.dp)
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Filled.AutoAwesome,
+                                    imageVector = Icons.Filled.Brush,
                                     contentDescription = null,
-                                    tint = ElectricViolet,
+                                    tint = NeonOrchid,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Live Style Studio",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    text = stringResource(R.string.hindi_calligraphy_title),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
-
-                            AnimatedVisibility(visible = hasHindiInInput) {
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = EmeraldSuccess.copy(alpha = 0.16f),
-                                    border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.5f))
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Translate,
-                                            contentDescription = null,
-                                            tint = EmeraldSuccess,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = stringResource(R.string.hindi_safe_badge),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = EmeraldSuccess
-                                        )
-                                    }
-                                }
-                            }
+                            VedographiPillBadge(text = selectedCalligraphyPreset.styleNote)
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = inputText,
-                            onValueChange = onInputChange,
-                            placeholder = {
-                                Text(
-                                    text = stringResource(R.string.input_placeholder),
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                            },
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = 18.sp,
-                                lineHeight = 26.sp,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            minLines = 2,
-                            maxLines = 4,
-                            shape = RoundedCornerShape(18.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = ElectricViolet,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                            ),
-                            trailingIcon = {
-                                if (inputText.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            onClearText()
-                                        },
-                                        modifier = Modifier
-                                            .minimumInteractiveComponentSize()
-                                            .testTag("clear_input_btn")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Clear,
-                                            contentDescription = stringResource(R.string.action_clear)
-                                        )
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("main_text_input")
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Character counter & responsive 3-button action bar (Paste / Clear Text / Copy All)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isInputEmpty) {
-                                    "220+ styles ready"
-                                } else {
-                                    "${inputText.length} chars • Live transform"
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (inputText.isNotEmpty()) {
-                                Text(
-                                    text = "Tap any card to copy",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    onPasteClick()
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("paste_input_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.ContentPaste,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.action_paste),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onClearText()
-                                },
-                                enabled = inputText.isNotEmpty(),
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("clear_text_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Clear,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.action_clear_text),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    onCopyAllClick()
-                                },
-                                enabled = filteredItems.isNotEmpty(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = Color.White
-                                ),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("copy_all_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.CopyAll,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.action_copy_all),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // Quick Sample Chips (English + Hindi)
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(QuickSamplePhrases) { phrase ->
-                                AssistChip(
+                            items(HindiCalligraphyPreset.entries, key = { it.id }) { preset ->
+                                val selected = preset == selectedCalligraphyPreset
+                                FilterChip(
+                                    selected = selected,
                                     onClick = {
-                                        focusManager.clearFocus()
-                                        onInputChange(phrase)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSelectCalligraphyPreset(preset)
                                     },
                                     label = {
                                         Text(
-                                            text = phrase,
-                                            style = MaterialTheme.typography.labelMedium,
+                                            text = "${preset.hindiLabel} • ${preset.displayName}",
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                fontFamily = preset.fontFamily
+                                            ),
                                             maxLines = 1
                                         )
                                     },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        labelColor = MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                                    colors = VedographiDefaults.filterChipColors(),
+                                    border = VedographiDefaults.filterChipBorder(selected),
+                                    modifier = Modifier
+                                        .height(40.dp)
+                                        .testTag("calligraphy_chip_${preset.id}")
+                                )
+                            }
+                        }
+
+                        // Live Calligraphy Canvas Preview
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            CalligraphyCanvasStart,
+                                            CalligraphyCanvasMid,
+                                            CalligraphyCanvasEnd
+                                        )
+                                    )
+                                )
+                                .padding(horizontal = 16.dp, vertical = 20.dp)
+                        ) {
+                            Text(
+                                text = calligraphyDisplay,
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontFamily = selectedCalligraphyPreset.fontFamily,
+                                    fontSize = 24.sp,
+                                    lineHeight = 34.sp
+                                ),
+                                color = CrispWhite,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onCopyCalligraphyText(calligraphyDisplay)
+                                },
+                                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                                colors = VedographiDefaults.outlinedButtonColors(),
+                                border = VedographiDefaults.outlinedButtonBorder(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(VedographiDefaults.ButtonHeight)
+                                    .testTag("copy_calligraphy_text_btn")
+                            ) {
+                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Copy Text", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                            }
+                            Button(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onShareCalligraphyCard()
+                                },
+                                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                                colors = VedographiDefaults.primaryButtonColors(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(VedographiDefaults.ButtonHeight)
+                                    .testTag("share_calligraphy_card_btn")
+                            ) {
+                                Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    stringResource(R.string.share_calligraphy_card),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -418,13 +572,8 @@ fun FontsHomeScreen(
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    ),
+                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                    colors = VedographiDefaults.textFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -449,17 +598,8 @@ fun FontsHomeScreen(
                                     style = MaterialTheme.typography.labelLarge
                                 )
                             },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White,
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = selected,
-                                borderColor = MaterialTheme.colorScheme.outline
-                            ),
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(selected),
                             modifier = Modifier
                                 .height(42.dp)
                                 .testTag("category_chip_${category.name}")
@@ -471,24 +611,17 @@ fun FontsHomeScreen(
             // 4. Trending Carousel (visible on All when not searching)
             if (selectedCategory == FontCategory.ALL && searchQuery.isBlank() && trendingItems.isNotEmpty()) {
                 item(key = "trending_header") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.trending_section_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = "Tap to copy",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    VedographiSectionHeader(
+                        title = stringResource(R.string.trending_section_title),
+                        action = {
+                            Text(
+                                text = "Tap to copy",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
                 }
 
                 item(key = "trending_carousel") {
@@ -499,6 +632,7 @@ fun FontsHomeScreen(
                         items(trendingItems, key = { "trend_${it.spec.id}" }) { item ->
                             TrendingSpotlightCard(
                                 item = item,
+                                previewFontFamily = selectedCalligraphyPreset.fontFamily,
                                 onCopy = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     onCopyItem(item)
@@ -509,45 +643,24 @@ fun FontsHomeScreen(
                 }
             }
 
-            // 5. Section Header + Copy All quick action
+            // 5. Section Header + Font Count Pill
             item(key = "list_header") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = if (selectedCategory == FontCategory.ALL) {
-                                stringResource(R.string.all_fonts_section_title)
-                            } else {
-                                selectedCategory.label
-                            },
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        if (isInputEmpty) {
-                            Text(
-                                text = "Previewing \"VEDOGRAPHi\" — type above to transform live",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Text(
-                            text = "${filteredItems.size} fonts",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                }
+                VedographiSectionHeader(
+                    title = if (selectedCategory == FontCategory.ALL) {
+                        stringResource(R.string.all_fonts_section_title)
+                    } else {
+                        selectedCategory.label
+                    },
+                    subtitle = if (isInputEmpty) {
+                        "Previewing \"VEDOGRAPHi\" — type above to transform live"
+                    } else {
+                        null
+                    },
+                    action = {
+                        VedographiPillBadge(text = "${filteredItems.size} fonts")
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
             }
 
             // 6. Empty State or Font List
@@ -580,6 +693,7 @@ fun FontsHomeScreen(
                         onCopy = { onCopyItem(item) },
                         onToggleFavorite = { onToggleFavorite(item.spec.id) },
                         onShare = { onShareItem(item) },
+                        previewFontFamily = selectedCalligraphyPreset.fontFamily,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
@@ -600,8 +714,8 @@ fun FontsHomeScreen(
                     scope.launch { listState.animateScrollToItem(0) }
                 },
                 shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
+                containerColor = RoyalViolet,
+                contentColor = CrispWhite,
                 modifier = Modifier
                     .size(48.dp)
                     .testTag("scroll_to_top_fab")
@@ -618,18 +732,19 @@ fun FontsHomeScreen(
 @Composable
 private fun TrendingSpotlightCard(
     item: FontPreviewItem,
+    previewFontFamily: FontFamily,
     onCopy: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(VedographiDefaults.CardCornerRadius),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(
             1.dp,
-            if (item.isRecentlyCopied) EmeraldSuccess else ElectricViolet.copy(alpha = 0.4f)
+            if (item.isRecentlyCopied) EmeraldSuccess else MaterialTheme.colorScheme.outline.copy(alpha = 0.75f)
         ),
         modifier = Modifier
-            .width(210.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .width(214.dp)
+            .clip(RoundedCornerShape(VedographiDefaults.CardCornerRadius))
             .clickable(onClick = onCopy)
     ) {
         Column(
@@ -637,7 +752,7 @@ private fun TrendingSpotlightCard(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            RoyalViolet.copy(alpha = 0.16f),
+                            RoyalViolet.copy(alpha = 0.22f),
                             Color.Transparent
                         )
                     )
@@ -668,7 +783,8 @@ private fun TrendingSpotlightCard(
             Text(
                 text = item.previewText,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 17.sp,
+                    fontFamily = previewFontFamily,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Medium
                 ),
                 color = MaterialTheme.colorScheme.onSurface,

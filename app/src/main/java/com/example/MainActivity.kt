@@ -35,7 +35,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -43,15 +43,20 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -91,13 +96,15 @@ import com.example.domain.SocialPlatform
 import com.example.ui.FontPreviewItem
 import com.example.ui.VedographiViewModel
 import com.example.ui.components.SocialShareBottomSheet
+import com.example.ui.components.VedographiDefaults
 import com.example.ui.components.VedographiSplashScreen
 import com.example.ui.components.VedographiTopHeader
+import com.example.ui.screens.AboutScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.BioCaptionScreen
 import com.example.ui.screens.FontsHomeScreen
 import com.example.ui.screens.MyTextStudioScreen
-import com.example.ui.screens.PrivacyAndAboutDialog
+import com.example.ui.screens.PrivacyPolicyScreen
 import com.example.ui.screens.UserProfileScreen
 import com.example.ui.screens.UsernameScreen
 import com.example.ui.theme.RoyalViolet
@@ -115,6 +122,14 @@ const val ROUTE_BIOS = "bio_captions"
 const val ROUTE_USERNAMES = "usernames"
 const val ROUTE_STUDIO = "studio_decorator"
 const val ROUTE_PROFILE = "user_profile"
+const val ROUTE_PRIVACY = "privacy_policy"
+const val ROUTE_ABOUT = "about_app"
+
+private enum class AuthLegalOverlay {
+    NONE,
+    PRIVACY,
+    ABOUT
+}
 
 private data class NavDestinationItem(
     val route: String,
@@ -168,11 +183,27 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = Firebase.auth.currentUser)
             val rootScope = rememberCoroutineScope()
 
-            var showPrivacyAndAbout by rememberSaveable { mutableStateOf(false) }
+            var authLegalOverlay by rememberSaveable { mutableStateOf(AuthLegalOverlay.NONE) }
             var skipAutoSignIn by rememberSaveable { mutableStateOf(false) }
             var authStatusBanner by rememberSaveable { mutableStateOf<String?>(null) }
+            var authSessionGeneration by rememberSaveable { mutableIntStateOf(0) }
+            var lastObservedSessionUid by rememberSaveable { mutableStateOf(Firebase.auth.currentUser?.uid) }
+            var pendingPostSignInMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
             var activeDarkTheme by remember { mutableStateOf(localDarkTheme) }
+            LaunchedEffect(currentUser?.uid) {
+                val newUid = currentUser?.uid
+                if (newUid != lastObservedSessionUid) {
+                    if (lastObservedSessionUid == null && newUid != null) {
+                        val who = currentUser?.displayName?.takeIf { it.isNotBlank() }
+                            ?: currentUser?.email?.takeIf { it.isNotBlank() }
+                            ?: "Google Account"
+                        pendingPostSignInMessage = "Signed in as $who! Syncing profile & studio..."
+                    }
+                    lastObservedSessionUid = newUid
+                    authSessionGeneration += 1
+                }
+            }
             LaunchedEffect(localDarkTheme, currentUser) {
                 if (currentUser == null) {
                     activeDarkTheme = localDarkTheme
@@ -205,23 +236,33 @@ class MainActivity : ComponentActivity() {
                     } else {
                         val user = currentUser
                         if (user == null && !isGuestModeEnabled) {
-                            AuthScreen(
-                                onAuthSuccess = {
-                                    authStatusBanner = null
-                                    skipAutoSignIn = false
-                                },
-                                onContinueAsGuest = {
-                                    authStatusBanner = null
-                                    rootScope.launch {
-                                        localPrefs.setGuestMode(true)
-                                    }
-                                },
-                                onOpenPrivacyPolicy = { showPrivacyAndAbout = true },
-                                skipAutoSignIn = skipAutoSignIn,
-                                statusBannerMessage = authStatusBanner
-                            )
+                            when (authLegalOverlay) {
+                                AuthLegalOverlay.PRIVACY -> PrivacyPolicyScreen(
+                                    onBack = { authLegalOverlay = AuthLegalOverlay.NONE }
+                                )
+                                AuthLegalOverlay.ABOUT -> AboutScreen(
+                                    onBack = { authLegalOverlay = AuthLegalOverlay.NONE },
+                                    onOpenPrivacyPolicy = { authLegalOverlay = AuthLegalOverlay.PRIVACY }
+                                )
+                                AuthLegalOverlay.NONE -> AuthScreen(
+                                    onAuthSuccess = {
+                                        authStatusBanner = null
+                                        skipAutoSignIn = false
+                                    },
+                                    onContinueAsGuest = {
+                                        authStatusBanner = null
+                                        rootScope.launch {
+                                            localPrefs.setGuestMode(true)
+                                        }
+                                    },
+                                    onOpenPrivacyPolicy = { authLegalOverlay = AuthLegalOverlay.PRIVACY },
+                                    onOpenAbout = { authLegalOverlay = AuthLegalOverlay.ABOUT },
+                                    skipAutoSignIn = skipAutoSignIn,
+                                    statusBannerMessage = authStatusBanner
+                                )
+                            }
                         } else {
-                            val sessionKey = user?.uid ?: "guest"
+                            val sessionKey = "${user?.uid ?: "guest"}_$authSessionGeneration"
                             key(sessionKey) {
                                 val viewModel: VedographiViewModel = viewModel(
                                     key = sessionKey,
@@ -260,12 +301,19 @@ class MainActivity : ComponentActivity() {
                                     viewModel = viewModel,
                                     isDarkTheme = syncedDarkTheme,
                                     currentUser = user,
-                                    onOpenPrivacyAndAbout = { showPrivacyAndAbout = true },
+                                    pendingPostSignInMessage = pendingPostSignInMessage,
+                                    onPostSignInMessageConsumed = { pendingPostSignInMessage = null },
+                                    onBeforeExplicitSignOut = {
+                                        skipAutoSignIn = true
+                                    },
                                     onExplicitSignOut = {
                                         skipAutoSignIn = true
                                         rootScope.launch {
-                                            localPrefs.setGuestMode(false)
+                                            localPrefs.clearSessionOnSignOut()
                                         }
+                                    },
+                                    onBeforeAccountDelete = {
+                                        skipAutoSignIn = true
                                     },
                                     onAccountDeleted = { deletedMsg ->
                                         skipAutoSignIn = true
@@ -275,10 +323,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                }
-
-                if (showPrivacyAndAbout) {
-                    PrivacyAndAboutDialog(onDismiss = { showPrivacyAndAbout = false })
                 }
             }
         }
@@ -290,8 +334,11 @@ private fun VedographiAppShell(
     viewModel: VedographiViewModel,
     isDarkTheme: Boolean,
     currentUser: FirebaseUser?,
-    onOpenPrivacyAndAbout: () -> Unit,
+    pendingPostSignInMessage: String?,
+    onPostSignInMessageConsumed: () -> Unit,
+    onBeforeExplicitSignOut: () -> Unit,
     onExplicitSignOut: () -> Unit,
+    onBeforeAccountDelete: () -> Unit,
     onAccountDeleted: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -301,11 +348,29 @@ private fun VedographiAppShell(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: ROUTE_FONTS
+    val isDetailRoute = currentRoute == ROUTE_PRIVACY || currentRoute == ROUTE_ABOUT
     var showAccountDialog by remember { mutableStateOf(false) }
     var isSigningIn by remember { mutableStateOf(false) }
+    var guestSignInError by remember { mutableStateOf<String?>(null) }
     val isGuest = currentUser == null
 
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            isSigningIn = false
+            guestSignInError = null
+        }
+    }
+
+    LaunchedEffect(pendingPostSignInMessage) {
+        val msg = pendingPostSignInMessage
+        if (!msg.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(msg)
+            onPostSignInMessageConsumed()
+        }
+    }
+
     // Collected States
+    val effectiveDisplayName by viewModel.effectiveDisplayName.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val isCloudSynced by viewModel.isCloudSynced.collectAsStateWithLifecycle()
     val isBackingUp by viewModel.isBackingUp.collectAsStateWithLifecycle()
@@ -316,6 +381,7 @@ private fun VedographiAppShell(
     val isInputEmpty by viewModel.isInputEmpty.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val selectedCalligraphyPreset by viewModel.selectedCalligraphyPreset.collectAsStateWithLifecycle()
     val hasHindiInInput by viewModel.hasHindiInInput.collectAsStateWithLifecycle()
     val trendingItems by viewModel.trendingFontItems.collectAsStateWithLifecycle()
     val filteredItems by viewModel.filteredFontItems.collectAsStateWithLifecycle()
@@ -386,22 +452,25 @@ private fun VedographiAppShell(
     }
 
     val triggerGoogleSignInFromGuest: () -> Unit = {
+        guestSignInError = null
         isSigningIn = true
         onGoogleSignInClicked(
             context = context,
             credentialManager = credentialManager,
             onAuthSuccess = {
                 isSigningIn = false
+                guestSignInError = null
                 showAccountDialog = false
-                showMessage("Signed in with Google! Syncing your studio & favorites...")
             },
             onAuthError = { msg ->
                 isSigningIn = false
+                guestSignInError = msg
                 showMessage(msg)
             },
             scope = scope,
             onAuthCancelled = {
                 isSigningIn = false
+                guestSignInError = "Sign-in was cancelled. You can retry anytime."
             }
         )
     }
@@ -477,34 +546,55 @@ private fun VedographiAppShell(
                 SnackbarHost(
                     hostState = snackbarHostState,
                     modifier = Modifier.navigationBarsPadding()
-                )
+                ) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        actionColor = MaterialTheme.colorScheme.primary
+                    )
+                }
             },
             bottomBar = {
-                if (!useRail) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                        tonalElevation = 8.dp
-                    ) {
-                        NavDestinations.forEach { dest ->
-                            val selected = currentRoute == dest.route
-                            val label = stringResource(dest.labelRes)
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { navigateTo(dest.route) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                        contentDescription = label
-                                    )
-                                },
-                                label = { Text(label) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
-                                modifier = Modifier.testTag("nav_${dest.route}")
-                            )
+                if (!useRail && !isDetailRoute) {
+                    Column {
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp
+                        ) {
+                            NavDestinations.forEach { dest ->
+                                val selected = currentRoute == dest.route
+                                val label = stringResource(dest.labelRes)
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = { navigateTo(dest.route) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                            contentDescription = label
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                    ),
+                                    modifier = Modifier.testTag("nav_${dest.route}")
+                                )
+                            }
                         }
                     }
                 }
@@ -515,7 +605,7 @@ private fun VedographiAppShell(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                if (useRail) {
+                if (useRail && !isDetailRoute) {
                     NavigationRail(
                         containerColor = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
@@ -536,7 +626,19 @@ private fun VedographiAppShell(
                                         contentDescription = label
                                     )
                                 },
-                                label = { Text(label) }
+                                label = {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                },
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                )
                             )
                         }
                         Spacer(modifier = Modifier.weight(1f))
@@ -548,26 +650,28 @@ private fun VedographiAppShell(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxSize()
-                        .statusBarsPadding()
+                        .then(if (isDetailRoute) Modifier else Modifier.statusBarsPadding())
                 ) {
                     Column(
                         modifier = Modifier
                             .widthIn(max = 840.dp)
                             .fillMaxSize()
                     ) {
-                        VedographiTopHeader(
-                            isDarkTheme = isDarkTheme,
-                            onToggleTheme = { viewModel.toggleDarkTheme() },
-                            isCloudSynced = isCloudSynced,
-                            isOnline = isOnline,
-                            onAccountClick = {
-                                if (currentRoute == ROUTE_PROFILE) {
-                                    showAccountDialog = true
-                                } else {
-                                    navigateTo(ROUTE_PROFILE)
+                        if (!isDetailRoute) {
+                            VedographiTopHeader(
+                                isDarkTheme = isDarkTheme,
+                                onToggleTheme = { viewModel.toggleDarkTheme() },
+                                isCloudSynced = isCloudSynced,
+                                isOnline = isOnline,
+                                onAccountClick = {
+                                    if (currentRoute == ROUTE_PROFILE) {
+                                        showAccountDialog = true
+                                    } else {
+                                        navigateTo(ROUTE_PROFILE)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         NavHost(
                             navController = navController,
@@ -586,6 +690,19 @@ private fun VedographiAppShell(
                                     hasHindiInInput = hasHindiInInput,
                                     trendingItems = trendingItems,
                                     filteredItems = filteredItems,
+                                    selectedCalligraphyPreset = selectedCalligraphyPreset,
+                                    onSelectCalligraphyPreset = viewModel::selectCalligraphyPreset,
+                                    onCopyCalligraphyText = { text ->
+                                        copyPlain(text, label = "Copied Hindi calligraphy text!")
+                                    },
+                                    onShareCalligraphyCard = {
+                                        val msg = ShareAndClipboardHelper.shareCalligraphyCard(
+                                            context = context,
+                                            text = inputText,
+                                            preset = selectedCalligraphyPreset
+                                        )
+                                        showMessage(msg)
+                                    },
                                     onInputChange = viewModel::updateInputText,
                                     onClearText = {
                                         viewModel.clearInputText()
@@ -849,10 +966,11 @@ private fun VedographiAppShell(
 
                             composable(ROUTE_PROFILE) {
                                 UserProfileScreen(
-                                    displayName = currentUser?.displayName,
+                                    displayName = effectiveDisplayName,
                                     email = currentUser?.email,
                                     isGuest = isGuest,
                                     isSigningIn = isSigningIn,
+                                    signInErrorMessage = guestSignInError,
                                     isOnline = isOnline,
                                     isCloudSynced = isCloudSynced,
                                     isBackingUp = isBackingUp,
@@ -865,16 +983,31 @@ private fun VedographiAppShell(
                                         viewModel.backupNow { msg -> showMessage(msg) }
                                     },
                                     onSignInWithGoogle = triggerGoogleSignInFromGuest,
+                                    onDismissSignInError = { guestSignInError = null },
                                     onSignOut = {
+                                        onBeforeExplicitSignOut()
                                         signOut(credentialManager, scope) {
                                             onExplicitSignOut()
                                         }
                                     },
-                                    onOpenPrivacyAndAbout = onOpenPrivacyAndAbout,
+                                    onOpenPrivacyPolicy = {
+                                        navController.navigate(ROUTE_PRIVACY) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    onOpenAbout = {
+                                        navController.navigate(ROUTE_ABOUT) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    onShareApp = {
+                                        showMessage(ShareAndClipboardHelper.shareAppLink(context))
+                                    },
                                     onClearLocalData = {
                                         viewModel.clearLocalData { msg -> showMessage(msg) }
                                     },
                                     onDeleteCloudAccount = {
+                                        onBeforeAccountDelete()
                                         val deletedMsg = context.getString(R.string.account_deleted_confirmation)
                                         viewModel.deleteCloudAccountAndData(
                                             onDeleteAuthUser = { deleteCurrentFirebaseUser() },
@@ -883,6 +1016,7 @@ private fun VedographiAppShell(
                                         )
                                     },
                                     onConfirmReauthAndDelete = {
+                                        onBeforeAccountDelete()
                                         val deletedMsg = context.getString(R.string.account_deleted_confirmation)
                                         scope.launch {
                                             val reauthResult = reauthenticateWithGoogle(context, credentialManager)
@@ -938,6 +1072,25 @@ private fun VedographiAppShell(
                                     onNavigateToStudio = { navigateTo(ROUTE_STUDIO) }
                                 )
                             }
+
+                            composable(ROUTE_PRIVACY) {
+                                PrivacyPolicyScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onShowMessage = { msg -> showMessage(msg) }
+                                )
+                            }
+
+                            composable(ROUTE_ABOUT) {
+                                AboutScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onOpenPrivacyPolicy = {
+                                        navController.navigate(ROUTE_PRIVACY) {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    onShowMessage = { msg -> showMessage(msg) }
+                                )
+                            }
                         }
                     }
                 }
@@ -964,10 +1117,17 @@ private fun VedographiAppShell(
 
     if (showAccountDialog) {
         AlertDialog(
-            onDismissRequest = { showAccountDialog = false },
+            onDismissRequest = {
+                guestSignInError = null
+                showAccountDialog = false
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = {
                 Text(
-                    if (currentUser == null) "VEDOGRAPHi Guest Mode" else "VEDOGRAPHi Cloud Sync"
+                    if (currentUser == null) "VEDOGRAPHi Guest Mode" else "VEDOGRAPHi Cloud Sync",
+                    style = MaterialTheme.typography.titleLarge
                 )
             },
             text = {
@@ -975,7 +1135,8 @@ private fun VedographiAppShell(
                     if (currentUser == null) {
                         Text(
                             text = stringResource(R.string.guest_display_name),
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.padding(top = 6.dp))
                         Text(
@@ -983,10 +1144,25 @@ private fun VedographiAppShell(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (!guestSignInError.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.padding(top = 10.dp))
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.errorContainer
+                            ) {
+                                Text(
+                                    text = guestSignInError.orEmpty(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
                     } else {
                         Text(
-                            text = currentUser.displayName?.takeIf { it.isNotBlank() } ?: "Google Account",
-                            style = MaterialTheme.typography.titleMedium
+                            text = effectiveDisplayName?.takeIf { it.isNotBlank() } ?: "Google Account",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         if (!currentUser.email.isNullOrBlank()) {
                             Text(
@@ -1013,21 +1189,27 @@ private fun VedographiAppShell(
                     Button(
                         onClick = triggerGoogleSignInFromGuest,
                         enabled = !isSigningIn,
-                        colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet)
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors()
                     ) {
-                        Text(if (isSigningIn) "Signing in..." else stringResource(R.string.sign_in_with_google))
+                        Text(
+                            if (isSigningIn) "Signing in..." else stringResource(R.string.sign_in_with_google),
+                            style = MaterialTheme.typography.labelLarge
+                        )
                     }
                 } else {
                     Button(
                         onClick = {
                             showAccountDialog = false
+                            onBeforeExplicitSignOut()
                             signOut(credentialManager, scope) {
                                 onExplicitSignOut()
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet)
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors()
                     ) {
-                        Text("Sign out")
+                        Text("Sign out", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             },
@@ -1037,10 +1219,10 @@ private fun VedographiAppShell(
                         TextButton(
                             onClick = {
                                 showAccountDialog = false
-                                onOpenPrivacyAndAbout()
+                                navController.navigate(ROUTE_PRIVACY) { launchSingleTop = true }
                             }
                         ) {
-                            Text("Privacy & About")
+                            Text("Privacy Policy", style = MaterialTheme.typography.labelLarge)
                         }
                     } else {
                         TextButton(
@@ -1050,11 +1232,11 @@ private fun VedographiAppShell(
                                 showAccountDialog = false
                             }
                         ) {
-                            Text(if (isBackingUp) "Backing up..." else "Backup Now")
+                            Text(if (isBackingUp) "Backing up..." else "Backup Now", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                     TextButton(onClick = { showAccountDialog = false }) {
-                        Text("Close")
+                        Text("Close", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

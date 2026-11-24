@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,7 +29,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -37,11 +37,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.ui.theme.AmitaFontFamily
+import com.example.ui.theme.CrispWhite
+import com.example.ui.theme.DeepPlumContainer
 import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.NeonOrchid
+import com.example.ui.theme.ObsidianIconPlate
 import com.example.ui.theme.ObsidianNight
-import com.example.ui.theme.RoyalViolet
 import com.example.ui.theme.SoftLilac
+import com.example.ui.theme.SplashGlowCenter
+import com.example.ui.theme.SplashGlowMid
 import kotlinx.coroutines.delay
 
 @Composable
@@ -70,8 +75,8 @@ fun VedographiSplashScreen(
             .background(
                 Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF28134E),
-                        Color(0xFF120924),
+                        SplashGlowCenter,
+                        SplashGlowMid,
                         ObsidianNight
                     )
                 )
@@ -91,7 +96,8 @@ fun VedographiSplashScreen(
         ) {
             Surface(
                 shape = RoundedCornerShape(32.dp),
-                color = Color(0xFF0E091F),
+                color = ObsidianIconPlate,
+                border = BorderStroke(1.5.dp, ElectricViolet.copy(alpha = 0.65f)),
                 shadowElevation = 24.dp,
                 modifier = Modifier
                     .size(124.dp)
@@ -110,10 +116,10 @@ fun VedographiSplashScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "VEDOGRAPHi",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.displayLarge.copy(
                     brush = Brush.linearGradient(
-                        colors = listOf(Color.White, SoftLilac, ElectricViolet, NeonOrchid)
+                        colors = listOf(CrispWhite, SoftLilac, ElectricViolet, NeonOrchid)
                     ),
                     letterSpacing = 2.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -125,7 +131,9 @@ fun VedographiSplashScreen(
 
             Text(
                 text = stringResource(R.string.brand_tagline),
-                style = MaterialTheme.typography.titleMedium.copy(
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = AmitaFontFamily,
+                    fontSize = 21.sp,
                     color = SoftLilac,
                     fontWeight = FontWeight.Medium
                 ),
@@ -134,17 +142,17 @@ fun VedographiSplashScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Box(
-                modifier = Modifier
-                    .alpha(contentAlpha.value)
-                    .clip(RoundedCornerShape(50))
-                    .background(RoyalViolet.copy(alpha = 0.25f))
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = DeepPlumContainer,
+                border = BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.45f)),
+                modifier = Modifier.alpha(contentAlpha.value)
             ) {
                 Text(
-                    text = "120+ Unicode Fonts • हिंदी Safe",
+                    text = "225+ Unicode Fonts • हिंदी कैलीग्राफी",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = SoftLilac,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
                 )
             }
         }

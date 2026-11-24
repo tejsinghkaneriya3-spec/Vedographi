@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auth.DeleteAuthAccountResult
 import com.example.data.CloudSavedCreation
-import com.example.data.CloudSyncRepository
+import com.example.data.CloudSyncGateway
 import com.example.data.CloudUiState
 import com.example.data.CloudUserProfile
 import com.example.data.PreferencesRepository
@@ -63,7 +63,7 @@ data class FontPreviewItem(
 
 class VedographiViewModel(
     private val repo: PreferencesRepository,
-    private val cloudRepo: CloudSyncRepository? = null,
+    private val cloudRepo: CloudSyncGateway? = null,
     private val currentUserId: String? = null,
     private val userDisplayName: String? = null,
     networkOnlineFlow: Flow<Boolean> = flowOf(true)
@@ -90,7 +90,7 @@ class VedographiViewModel(
     private val _accountDeletionState = MutableStateFlow<AccountDeletionState>(AccountDeletionState.Idle)
     val accountDeletionState: StateFlow<AccountDeletionState> = _accountDeletionState.asStateFlow()
 
-    private var initialBackupAttempted = false
+    private val initialSyncCompleted = MutableStateFlow(isGuest)
     private var draftSaveJob: Job? = null
 
     private val cloudProfileState: StateFlow<CloudUiState<CloudUserProfile?>> =
@@ -132,6 +132,13 @@ class VedographiViewModel(
     val isCloudSynced: StateFlow<Boolean> = combine(isOnline, cloudProfileState, cloudCreationsState) { online, p, c ->
         !isGuest && online && p is CloudUiState.Success && c is CloudUiState.Success
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
+
+    val effectiveDisplayName: StateFlow<String?> = cloudProfileState
+        .map { state ->
+            val cloudName = (state as? CloudUiState.Success)?.data?.displayName
+            userDisplayName?.takeIf { it.isNotBlank() } ?: cloudName?.takeIf { it.isNotBlank() }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), userDisplayName)
 
     val isDarkTheme: StateFlow<Boolean> = combine(isOnline, repo.isDarkTheme, cloudProfileState) { online, localDark, cloudState ->
         when {
@@ -181,19 +188,23 @@ class VedographiViewModel(
 
     init {
         viewModelScope.launch {
+            if (!isGuest && !currentUserId.isNullOrBlank()) {
+                repo.prepareSessionForUser(currentUserId)
+            }
             hydrateDraftsFromDataStore()
             if (!isGuest && isOnline.value) {
                 syncLocalBackupToCloud(showErrorOnFailure = false)
             }
-            initialBackupAttempted = true
+            initialSyncCompleted.value = true
         }
 
         if (!isGuest) {
-            // Read-through cache: mirror cloud profile updates into DataStore for offline availability
+            // Read-through cache: mirror cloud profile updates into DataStore once initial merge finishes
             viewModelScope.launch {
-                cloudProfileState.collect { state ->
-                    val profile = (state as? CloudUiState.Success)?.data
-                    if (initialBackupAttempted && profile != null) {
+                combine(initialSyncCompleted, _isBackingUp, cloudProfileState) { synced, backingUp, state ->
+                    if (synced && !backingUp) (state as? CloudUiState.Success)?.data else null
+                }.collect { profile ->
+                    if (profile != null) {
                         repo.cacheCloudProfile(
                             darkTheme = profile.darkTheme,
                             favoriteIds = profile.favoriteFontIds.toSet(),
@@ -203,11 +214,12 @@ class VedographiViewModel(
                 }
             }
 
-            // Read-through cache: mirror cloud creations into DataStore for offline availability
+            // Read-through cache: mirror cloud creations into DataStore once initial sync finishes
             viewModelScope.launch {
-                cloudCreationsState.collect { state ->
-                    val list = (state as? CloudUiState.Success)?.data
-                    if (initialBackupAttempted && list != null) {
+                combine(initialSyncCompleted, _isBackingUp, cloudCreationsState) { synced, backingUp, state ->
+                    if (synced && !backingUp) (state as? CloudUiState.Success)?.data else null
+                }.collect { list ->
+                    if (list != null) {
                         repo.cacheCloudCreations(
                             list.map {
                                 SavedCreation(
@@ -336,8 +348,7 @@ class VedographiViewModel(
             }
             when (val authResult = onDeleteAuthUser()) {
                 is DeleteAuthAccountResult.Success -> {
-                    repo.clearAllUserData()
-                    repo.setGuestMode(false)
+                    repo.clearSessionOnSignOut()
                     onPostDeleteCleanup()
                     _accountDeletionState.value = AccountDeletionState.Completed
                     onSuccess()
@@ -354,7 +365,7 @@ class VedographiViewModel(
 
     private suspend fun syncLocalBackupToCloud(showErrorOnFailure: Boolean): String {
         val cloud = cloudRepo ?: return "Guest Mode active"
-        if (currentUserId.isNullOrBlank()) return "Guest Mode active"
+        val uid = currentUserId?.takeIf { it.isNotBlank() } ?: return "Guest Mode active"
         _isBackingUp.value = true
         return try {
             val localDark = repo.isDarkTheme.first()
@@ -374,17 +385,19 @@ class VedographiViewModel(
                 return msg
             }
 
-            // Merge any local-only favorites into cloud profile
-            val existingProfile = (cloudProfileState.value as? CloudUiState.Success)?.data
-            if (existingProfile != null && localFavs.isNotEmpty()) {
-                val mergedFavs = existingProfile.favoriteFontIds.toSet() + localFavs
-                if (mergedFavs.size > existingProfile.favoriteFontIds.size) {
-                    cloud.updateFavorites(mergedFavs)
-                }
+            val mergedProfile = ensureResult.getOrNull()
+            if (mergedProfile != null) {
+                repo.cacheCloudProfile(
+                    darkTheme = mergedProfile.darkTheme,
+                    favoriteIds = mergedProfile.favoriteFontIds.toSet(),
+                    recentIds = mergedProfile.recentFontIds
+                )
             }
 
-            // Back up any local studio creations not yet in Firestore
-            val existingCloudCreations = (cloudCreationsState.value as? CloudUiState.Success)?.data.orEmpty()
+            // Fetch existing cloud creations directly rather than reading uncollected Loading state
+            val cloudCreationsResult = cloud.fetchCreationsOnce(uid)
+            val existingCloudCreations = cloudCreationsResult.getOrNull()
+                ?: (cloudCreationsState.value as? CloudUiState.Success)?.data.orEmpty()
             val cloudIds = existingCloudCreations.map { it.id }.toSet()
             val cloudContents = existingCloudCreations.map { it.content }.toSet()
             var uploadedCount = 0
@@ -404,9 +417,9 @@ class VedographiViewModel(
                 }
             }
             if (uploadedCount > 0) {
-                "Backed up $uploadedCount local creation(s) & favorites to cloud!"
+                "Backed up $uploadedCount local creation(s) & profile to cloud!"
             } else {
-                "All favorites & studio projects backed up to cloud!"
+                "All favorites, recents & studio projects backed up to cloud!"
             }
         } finally {
             _isBackingUp.value = false
@@ -427,6 +440,10 @@ class VedographiViewModel(
     private val _selectedCategory = MutableStateFlow(FontCategory.ALL)
     val selectedCategory: StateFlow<FontCategory> = _selectedCategory.asStateFlow()
 
+    private val _selectedCalligraphyPreset = MutableStateFlow(com.example.ui.theme.HindiCalligraphyPreset.KALAM)
+    val selectedCalligraphyPreset: StateFlow<com.example.ui.theme.HindiCalligraphyPreset> =
+        _selectedCalligraphyPreset.asStateFlow()
+
     private val _copiedFeedbackId = MutableStateFlow<String?>(null)
     val copiedFeedbackId: StateFlow<String?> = _copiedFeedbackId.asStateFlow()
 
@@ -436,6 +453,10 @@ class VedographiViewModel(
     val hasHindiInInput: StateFlow<Boolean> = _inputText
         .map { UnicodeFontEngine.containsHindi(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
+
+    fun selectCalligraphyPreset(preset: com.example.ui.theme.HindiCalligraphyPreset) {
+        _selectedCalligraphyPreset.value = preset
+    }
 
     val trendingFontItems: StateFlow<List<FontPreviewItem>> = combine(
         _inputText,
@@ -732,12 +753,11 @@ class VedographiViewModel(
     }
 
     fun toggleFavorite(fontId: String) {
-        val current = favoriteFontIds.value.toMutableSet()
-        if (current.contains(fontId)) current.remove(fontId) else current.add(fontId)
         viewModelScope.launch {
             repo.toggleFavorite(fontId)
+            val updatedFavs = repo.favoriteFontIds.first()
             if (!isGuest && isOnline.value) {
-                cloudRepo?.updateFavorites(current)?.onFailure { err ->
+                cloudRepo?.updateFavorites(updatedFavs)?.onFailure { err ->
                     _cloudSyncError.value = err.localizedMessage ?: "Failed to sync favorite"
                 }
             }
@@ -745,12 +765,14 @@ class VedographiViewModel(
     }
 
     fun markFontUsed(fontId: String, styledText: String? = null) {
-        val nextRecents = (listOf(fontId) + recentFontIds.value.filter { it != fontId }).take(25)
         val spec = FontCatalog.findById(fontId)
         val rawInput = _inputText.value.ifEmpty { "VEDOGRAPHi" }
         val output = styledText ?: spec?.transform(rawInput)
         viewModelScope.launch {
             repo.recordRecent(fontId)
+            val updatedLocalRecents = repo.recentFontIds.first()
+            val cloudRecents = (cloudProfileState.value as? CloudUiState.Success)?.data?.recentFontIds.orEmpty()
+            val mergedRecents = (updatedLocalRecents + cloudRecents).distinct().take(25)
             if (spec != null && !output.isNullOrBlank()) {
                 repo.cacheGeneratedStyle(
                     CachedStyleEntry(
@@ -764,7 +786,7 @@ class VedographiViewModel(
                 )
             }
             if (!isGuest && isOnline.value) {
-                cloudRepo?.updateRecents(nextRecents)
+                cloudRepo?.updateRecents(mergedRecents)
             }
             _copiedFeedbackId.value = fontId
             delay(1500)

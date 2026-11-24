@@ -30,6 +30,7 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val STUDIO_DRAFT_JSON = stringPreferencesKey("studio_draft_json")
         val LAST_CLOUD_CACHE_SYNC_MS = longPreferencesKey("last_cloud_cache_sync_ms")
         val IS_GUEST_MODE = booleanPreferencesKey("is_guest_mode")
+        val LAST_OWNER_UID = stringPreferencesKey("last_owner_uid")
     }
 
     val favoriteFontIds: Flow<Set<String>> = dataStore.data.map { prefs ->
@@ -193,6 +194,46 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun setGuestMode(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.IS_GUEST_MODE] = enabled
+        }
+    }
+
+    /**
+     * Ensures local DataStore data never leaks across different Google accounts.
+     * - If previous owner was Guest (blank UID), local favorites/creations/styles are preserved
+     *   so they can merge into the newly signed-in Google account.
+     * - If previous owner was a different Google account UID, clears previous account's local records first.
+     */
+    suspend fun prepareSessionForUser(userId: String) {
+        if (userId.isBlank()) return
+        dataStore.edit { prefs ->
+            val previousOwner = prefs[Keys.LAST_OWNER_UID].orEmpty()
+            if (previousOwner.isNotBlank() && previousOwner != userId) {
+                prefs.remove(Keys.FAVORITE_IDS)
+                prefs.remove(Keys.RECENT_IDS)
+                prefs.remove(Keys.SAVED_CREATIONS)
+                prefs.remove(Keys.CACHED_GENERATED_STYLES)
+                prefs.remove(Keys.STUDIO_DRAFT_JSON)
+                prefs.remove(Keys.LAST_CLOUD_CACHE_SYNC_MS)
+            }
+            prefs[Keys.LAST_OWNER_UID] = userId
+            prefs[Keys.IS_GUEST_MODE] = false
+        }
+    }
+
+    /**
+     * Clears signed-in user's cached local records & owner tag on explicit sign-out so
+     * private cloud data does not remain visible in Guest Mode or bleed into another Google account.
+     */
+    suspend fun clearSessionOnSignOut() {
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.FAVORITE_IDS)
+            prefs.remove(Keys.RECENT_IDS)
+            prefs.remove(Keys.SAVED_CREATIONS)
+            prefs.remove(Keys.CACHED_GENERATED_STYLES)
+            prefs.remove(Keys.STUDIO_DRAFT_JSON)
+            prefs.remove(Keys.LAST_CLOUD_CACHE_SYNC_MS)
+            prefs.remove(Keys.LAST_OWNER_UID)
+            prefs[Keys.IS_GUEST_MODE] = false
         }
     }
 

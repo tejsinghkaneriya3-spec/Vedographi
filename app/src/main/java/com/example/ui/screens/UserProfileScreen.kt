@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CloudDone
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Share
@@ -45,7 +48,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +72,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,6 +86,12 @@ import com.example.ui.AccountDeletionState
 import com.example.ui.FontPreviewItem
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.FontPreviewCard
+import com.example.ui.components.VedographiContentCard
+import com.example.ui.components.VedographiDefaults
+import com.example.ui.components.VedographiHeroCard
+import com.example.ui.components.VedographiPillBadge
+import com.example.ui.components.VedographiSectionHeader
+import com.example.ui.theme.CrispWhite
 import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.NeonOrchid
@@ -95,6 +105,7 @@ fun UserProfileScreen(
     email: String?,
     isGuest: Boolean = false,
     isSigningIn: Boolean = false,
+    signInErrorMessage: String? = null,
     isOnline: Boolean = true,
     isCloudSynced: Boolean,
     isBackingUp: Boolean,
@@ -105,8 +116,11 @@ fun UserProfileScreen(
     recentFontsCount: Int,
     onBackupNow: () -> Unit,
     onSignInWithGoogle: () -> Unit = {},
+    onDismissSignInError: () -> Unit = {},
     onSignOut: () -> Unit,
-    onOpenPrivacyAndAbout: () -> Unit = {},
+    onOpenPrivacyPolicy: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
+    onShareApp: () -> Unit = {},
     onClearLocalData: () -> Unit = {},
     onDeleteCloudAccount: () -> Unit = {},
     onConfirmReauthAndDelete: () -> Unit = {},
@@ -161,236 +175,231 @@ fun UserProfileScreen(
     ) {
         // Hero Profile Card
         item(key = "profile_hero") {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp,
-                border = BorderStroke(
-                    1.5.dp,
-                    Brush.linearGradient(listOf(ElectricViolet, NeonOrchid))
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(62.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(listOf(RoyalViolet, ElectricViolet, NeonOrchid))
-                                )
-                        ) {
-                            Text(
-                                text = initialChar,
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold
-                                ),
-                                color = Color.White
+            VedographiHeroCard(contentPadding = PaddingValues(18.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(62.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(listOf(RoyalViolet, ElectricViolet, NeonOrchid))
                             )
-                        }
+                    ) {
+                        Text(
+                            text = initialChar,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold
+                            ),
+                            color = CrispWhite
+                        )
+                    }
 
-                        Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = safeName,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (isGuest) {
                             Text(
-                                text = safeName,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                text = stringResource(R.string.guest_mode_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else if (!email.isNullOrBlank()) {
+                            Text(
+                                text = email,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            if (isGuest) {
-                                Text(
-                                    text = stringResource(R.string.guest_mode_subtitle),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else if (!email.isNullOrBlank()) {
-                                Text(
-                                    text = email,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = when {
-                                    isGuest -> ElectricViolet.copy(alpha = 0.16f)
-                                    !isOnline -> NeonOrchid.copy(alpha = 0.16f)
-                                    isCloudSynced -> EmeraldSuccess.copy(alpha = 0.14f)
-                                    else -> ElectricViolet.copy(alpha = 0.14f)
-                                }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val statusTint = when {
+                            isGuest -> MaterialTheme.colorScheme.primary
+                            !isOnline -> NeonOrchid
+                            isCloudSynced -> EmeraldSuccess
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = statusTint.copy(alpha = 0.14f),
+                            border = BorderStroke(1.dp, statusTint.copy(alpha = 0.45f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = when {
-                                            isGuest -> Icons.Outlined.PersonOutline
-                                            !isOnline -> Icons.Filled.CloudOff
-                                            isCloudSynced -> Icons.Filled.CloudDone
-                                            else -> Icons.Filled.CloudSync
-                                        },
-                                        contentDescription = null,
-                                        tint = when {
-                                            isGuest -> ElectricViolet
-                                            !isOnline -> NeonOrchid
-                                            isCloudSynced -> EmeraldSuccess
-                                            else -> ElectricViolet
-                                        },
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = when {
-                                            isGuest -> stringResource(R.string.guest_mode_badge)
-                                            !isOnline -> "Offline • DataStore Cache Active"
-                                            isCloudSynced -> "Cloud + DataStore Cache Active"
-                                            else -> "Syncing with Cloud"
-                                        },
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = when {
-                                            isGuest -> ElectricViolet
-                                            !isOnline -> NeonOrchid
-                                            isCloudSynced -> EmeraldSuccess
-                                            else -> ElectricViolet
-                                        }
-                                    )
-                                }
+                                Icon(
+                                    imageVector = when {
+                                        isGuest -> Icons.Outlined.PersonOutline
+                                        !isOnline -> Icons.Filled.CloudOff
+                                        isCloudSynced -> Icons.Filled.CloudDone
+                                        else -> Icons.Filled.CloudSync
+                                    },
+                                    contentDescription = null,
+                                    tint = statusTint,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = when {
+                                        isGuest -> stringResource(R.string.guest_mode_badge)
+                                        !isOnline -> "Offline • DataStore Cache Active"
+                                        isCloudSynced -> "Cloud + DataStore Cache Active"
+                                        else -> "Syncing with Cloud"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = statusTint
+                                )
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    // Stats Strip
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Stats Strip
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ProfileStatTile(
+                        count = favoriteFonts.size,
+                        label = "Favorites",
+                        modifier = Modifier.weight(1f)
+                    )
+                    ProfileStatTile(
+                        count = savedCreations.size,
+                        label = "Projects",
+                        modifier = Modifier.weight(1f)
+                    )
+                    ProfileStatTile(
+                        count = cachedStyles.size,
+                        label = "Cached",
+                        modifier = Modifier.weight(1f)
+                    )
+                    ProfileStatTile(
+                        count = recentFontsCount,
+                        label = "Recent",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Backup / Sign-In / Sign-Out Actions
+                if (isGuest) {
+                    Button(
+                        onClick = onSignInWithGoogle,
+                        enabled = !isSigningIn,
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(VedographiDefaults.ButtonHeight)
+                            .testTag("profile_google_sign_in_button")
                     ) {
-                        ProfileStatTile(
-                            count = favoriteFonts.size,
-                            label = "Favorites",
-                            modifier = Modifier.weight(1f)
-                        )
-                        ProfileStatTile(
-                            count = savedCreations.size,
-                            label = "Projects",
-                            modifier = Modifier.weight(1f)
-                        )
-                        ProfileStatTile(
-                            count = cachedStyles.size,
-                            label = "Cached",
-                            modifier = Modifier.weight(1f)
-                        )
-                        ProfileStatTile(
-                            count = recentFontsCount,
-                            label = "Recent",
-                            modifier = Modifier.weight(1f)
-                        )
+                        if (isSigningIn) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = CrispWhite,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Signing in...", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Login,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.sign_in_with_google),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
                     }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Backup / Sign-In / Sign-Out Actions
-                    if (isGuest) {
-                        Button(
-                            onClick = onSignInWithGoogle,
-                            enabled = !isSigningIn,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = RoyalViolet,
-                                contentColor = Color.White
-                            ),
+                    if (!signInErrorMessage.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("profile_google_sign_in_button")
+                                .clickable(onClick = onDismissSignInError)
                         ) {
-                            if (isSigningIn) {
+                            Text(
+                                text = signInErrorMessage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = onBackupNow,
+                            enabled = !isBackingUp,
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.primaryButtonColors(),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(VedographiDefaults.ButtonHeight)
+                                .testTag("profile_backup_button")
+                        ) {
+                            if (isBackingUp) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
-                                    color = Color.White,
+                                    color = CrispWhite,
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Signing in...", maxLines = 1, softWrap = false)
+                                Text("Backing up...", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
                             } else {
                                 Icon(
-                                    imageVector = Icons.Filled.Login,
+                                    imageVector = Icons.Filled.CloudSync,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.sign_in_with_google),
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
+                                Text("Backup Now", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
                             }
                         }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(
-                                onClick = onBackupNow,
-                                enabled = !isBackingUp,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RoyalViolet,
-                                    contentColor = Color.White
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("profile_backup_button")
-                            ) {
-                                if (isBackingUp) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Backing up...", maxLines = 1, softWrap = false)
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Filled.CloudSync,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Backup Now", maxLines = 1, softWrap = false)
-                                }
-                            }
 
-                            OutlinedButton(
-                                onClick = onSignOut,
-                                shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .testTag("profile_sign_out_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Logout,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Sign Out", maxLines = 1, softWrap = false)
-                            }
+                        OutlinedButton(
+                            onClick = onSignOut,
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.outlinedButtonColors(),
+                            border = VedographiDefaults.outlinedButtonBorder(),
+                            modifier = Modifier
+                                .height(VedographiDefaults.ButtonHeight)
+                                .testTag("profile_sign_out_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Sign Out", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -414,9 +423,15 @@ fun UserProfileScreen(
                             index = idx,
                             count = ProfileSections.size
                         ),
+                        colors = VedographiDefaults.segmentedButtonColors(),
                         modifier = Modifier.testTag("profile_tab_$idx")
                     ) {
-                        Text(displayLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            displayLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -425,26 +440,11 @@ fun UserProfileScreen(
         // Favorite Fonts Section
         if (selectedSection == 0 || selectedSection == 1) {
             item(key = "fav_section_header") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.Favorite,
-                            contentDescription = null,
-                            tint = NeonOrchid,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Saved Favorite Fonts (${favoriteFonts.size})",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                }
+                VedographiSectionHeader(
+                    title = "Saved Favorite Fonts (${favoriteFonts.size})",
+                    icon = Icons.Filled.Favorite,
+                    iconTint = NeonOrchid
+                )
             }
 
             if (favoriteFonts.isEmpty()) {
@@ -455,14 +455,17 @@ fun UserProfileScreen(
                             subtitle = "Heart any of the 220+ Unicode fonts to back them up to your profile.",
                             icon = Icons.Outlined.FavoriteBorder
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         OutlinedButton(
                             onClick = onNavigateToFonts,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.height(48.dp)
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.outlinedButtonColors(),
+                            border = VedographiDefaults.outlinedButtonBorder(),
+                            modifier = Modifier.height(VedographiDefaults.ButtonHeight)
                         ) {
                             Icon(Icons.Filled.TextFields, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Explore 220+ Fonts")
+                            Text("Explore 220+ Fonts", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -482,40 +485,25 @@ fun UserProfileScreen(
         if (selectedSection == 0 || selectedSection == 2) {
             item(key = "projects_section_header") {
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.AutoFixHigh,
-                            contentDescription = null,
-                            tint = ElectricViolet,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Custom Studio Projects (${savedCreations.size})",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                }
+                VedographiSectionHeader(
+                    title = "Custom Studio Projects (${savedCreations.size})",
+                    icon = Icons.Filled.AutoFixHigh,
+                    iconTint = MaterialTheme.colorScheme.primary
+                )
             }
 
             if (availableKinds.size > 2) {
                 item(key = "project_kind_filters") {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(availableKinds) { kind ->
+                            val selected = kind == selectedProjectKind
                             FilterChip(
-                                selected = kind == selectedProjectKind,
+                                selected = selected,
                                 onClick = { selectedProjectKind = kind },
-                                label = { Text(kind) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = Color.White
-                                )
+                                label = { Text(kind, style = MaterialTheme.typography.labelLarge) },
+                                colors = VedographiDefaults.filterChipColors(),
+                                border = VedographiDefaults.filterChipBorder(selected),
+                                modifier = Modifier.height(40.dp)
                             )
                         }
                     }
@@ -530,14 +518,17 @@ fun UserProfileScreen(
                             subtitle = "Save decorated texts, bios, usernames, stylish names, or WhatsApp statuses from My Text Studio.",
                             icon = Icons.Outlined.BookmarkBorder
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         OutlinedButton(
                             onClick = onNavigateToStudio,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.height(48.dp)
+                            shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                            colors = VedographiDefaults.outlinedButtonColors(),
+                            border = VedographiDefaults.outlinedButtonBorder(),
+                            modifier = Modifier.height(VedographiDefaults.ButtonHeight)
                         ) {
                             Icon(Icons.Filled.AutoFixHigh, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Open My Text Studio")
+                            Text("Open My Text Studio", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -558,31 +549,23 @@ fun UserProfileScreen(
         if (selectedSection == 0 || selectedSection == 3) {
             item(key = "profile_cache_header") {
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Icon(
-                            imageVector = Icons.Filled.History,
-                            contentDescription = null,
-                            tint = NeonOrchid,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Offline Cached Styles (${cachedStyles.size})",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    if (cachedStyles.isNotEmpty()) {
-                        TextButton(onClick = onClearCachedStyles) {
-                            Text("Clear")
+                VedographiSectionHeader(
+                    title = "Offline Cached Styles (${cachedStyles.size})",
+                    icon = Icons.Filled.History,
+                    iconTint = NeonOrchid,
+                    action = if (cachedStyles.isNotEmpty()) {
+                        {
+                            TextButton(
+                                onClick = onClearCachedStyles,
+                                modifier = Modifier.minimumInteractiveComponentSize()
+                            ) {
+                                Text("Clear", style = MaterialTheme.typography.labelLarge)
+                            }
                         }
+                    } else {
+                        null
                     }
-                }
+                )
             }
 
             if (cachedStyles.isEmpty()) {
@@ -606,103 +589,81 @@ fun UserProfileScreen(
             }
         }
 
-        // Account, Privacy Policy & Data Deletion Section
+        // Settings, Legal, Share & Data Controls Section
         item(key = "account_and_privacy_card") {
             Spacer(modifier = Modifier.height(6.dp))
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)),
-                modifier = Modifier.fillMaxWidth()
+            VedographiContentCard(
+                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 16.dp)
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.PrivacyTip,
-                            contentDescription = null,
-                            tint = ElectricViolet,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.account_and_privacy_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                Text(
+                    text = stringResource(R.string.account_and_privacy_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (isGuest) {
+                        "Privacy details, app info, native share, and local device data controls."
+                    } else {
+                        "Privacy details, app info, native share, local cache wipe, or permanent account deletion."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                    Text(
-                        text = if (isGuest) {
-                            "Review data practices or clear locally stored cache, drafts, and favorites from this device."
-                        } else {
-                            "Review data practices, wipe local device cache, or permanently delete your Google-linked cloud account and data."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                Spacer(modifier = Modifier.height(10.dp))
+
+                ProfileSettingsActionRow(
+                    icon = Icons.Filled.PrivacyTip,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    title = stringResource(R.string.privacy_policy_title),
+                    subtitle = "Permissions, data safety & deletion rights",
+                    testTag = "profile_privacy_policy_btn",
+                    onClick = onOpenPrivacyPolicy
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                ProfileSettingsActionRow(
+                    icon = Icons.Filled.Info,
+                    iconTint = NeonOrchid,
+                    title = stringResource(R.string.about_app_title),
+                    subtitle = "Version, brand mission & developer contact",
+                    testTag = "profile_about_btn",
+                    onClick = onOpenAbout
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                ProfileSettingsActionRow(
+                    icon = Icons.Filled.Share,
+                    iconTint = EmeraldSuccess,
+                    title = stringResource(R.string.share_app_title),
+                    subtitle = "Send VEDOGRAPHi link to friends",
+                    testTag = "profile_share_app_btn",
+                    onClick = onShareApp
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                ProfileSettingsActionRow(
+                    icon = Icons.Filled.DeleteSweep,
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    title = stringResource(R.string.clear_local_data),
+                    subtitle = "Remove cached styles, drafts & local recents",
+                    testTag = "profile_clear_local_data_btn",
+                    onClick = { showClearLocalConfirm = true }
+                )
+
+                if (!isGuest) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    ProfileSettingsActionRow(
+                        icon = Icons.Filled.DeleteForever,
+                        iconTint = MaterialTheme.colorScheme.error,
+                        title = stringResource(R.string.delete_cloud_account),
+                        subtitle = "Permanently delete Firestore profile & account",
+                        titleColor = MaterialTheme.colorScheme.error,
+                        enabled = accountDeletionState !is AccountDeletionState.Deleting,
+                        testTag = "profile_delete_account_btn",
+                        onClick = { showDeleteAccountConfirm = true }
                     )
-
-                    OutlinedButton(
-                        onClick = onOpenPrivacyAndAbout,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("profile_privacy_about_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.PrivacyTip,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.privacy_and_about), maxLines = 1)
-                    }
-
-                    OutlinedButton(
-                        onClick = { showClearLocalConfirm = true },
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("profile_clear_local_data_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.DeleteSweep,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.clear_local_data), maxLines = 1)
-                    }
-
-                    if (!isGuest) {
-                        OutlinedButton(
-                            onClick = { showDeleteAccountConfirm = true },
-                            enabled = accountDeletionState !is AccountDeletionState.Deleting,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            ),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.7f)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("profile_delete_account_btn")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.DeleteForever,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.delete_cloud_account), maxLines = 1)
-                        }
-                    }
                 }
             }
         }
@@ -713,14 +674,18 @@ fun UserProfileScreen(
     if (showClearLocalConfirm) {
         AlertDialog(
             onDismissRequest = { showClearLocalConfirm = false },
-            title = { Text("Clear Local Cache & Data?") },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            title = { Text("Clear Local Cache & Data?", style = MaterialTheme.typography.titleLarge) },
             text = {
                 Text(
                     if (isGuest) {
                         "This removes all locally saved favorites, recent fonts, Studio creations, drafts, and offline cached styles from this device."
                     } else {
                         "This removes locally cached styles, drafts, and offline DataStore entries on this device. Your Google Cloud backup stays safe unless you delete your account."
-                    }
+                    },
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
             confirmButton = {
@@ -729,17 +694,18 @@ fun UserProfileScreen(
                         showClearLocalConfirm = false
                         onClearLocalData()
                     },
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     )
                 ) {
-                    Text("Clear Local Data")
+                    Text("Clear Local Data", style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearLocalConfirm = false }) {
-                    Text("Cancel")
+                    Text("Cancel", style = MaterialTheme.typography.labelLarge)
                 }
             }
         )
@@ -748,14 +714,18 @@ fun UserProfileScreen(
     if (showDeleteAccountConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountConfirm = false },
-            title = { Text("Delete Account & Cloud Data?") },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            title = { Text("Delete Account & Cloud Data?", style = MaterialTheme.typography.titleLarge) },
             text = {
                 Text(
                     "This action is permanent and cannot be undone. It will permanently delete:\n" +
                         "• Your Cloud Firestore profile & saved favorites\n" +
                         "• All cloud-synced Studio projects\n" +
                         "• Your Firebase Authentication account link\n" +
-                        "• All local offline DataStore cache & drafts"
+                        "• All local offline DataStore cache & drafts",
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
             confirmButton = {
@@ -764,17 +734,18 @@ fun UserProfileScreen(
                         showDeleteAccountConfirm = false
                         onDeleteCloudAccount()
                     },
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     )
                 ) {
-                    Text("Delete Permanently")
+                    Text("Delete Permanently", style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAccountConfirm = false }) {
-                    Text("Cancel")
+                    Text("Cancel", style = MaterialTheme.typography.labelLarge)
                 }
             }
         )
@@ -784,12 +755,18 @@ fun UserProfileScreen(
         AccountDeletionState.Deleting -> {
             AlertDialog(
                 onDismissRequest = {},
-                title = { Text("Deleting Account") },
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                title = { Text("Deleting Account", style = MaterialTheme.typography.titleLarge) },
                 text = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.5.dp)
                         Spacer(modifier = Modifier.width(14.dp))
-                        Text("Removing your cloud creations, profile, and account...")
+                        Text(
+                            "Removing your cloud creations, profile, and account...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 },
                 confirmButton = {}
@@ -798,24 +775,31 @@ fun UserProfileScreen(
         AccountDeletionState.ReauthRequired -> {
             AlertDialog(
                 onDismissRequest = onDismissDeletionFeedback,
-                title = { Text("Google Verification Required") },
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                title = { Text("Google Verification Required", style = MaterialTheme.typography.titleLarge) },
                 text = {
-                    Text("For your security, please verify your Google sign-in once more to permanently delete your account.")
+                    Text(
+                        "For your security, please verify your Google sign-in once more to permanently delete your account.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 },
                 confirmButton = {
                     Button(
                         onClick = onConfirmReauthAndDelete,
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError
                         )
                     ) {
-                        Text("Verify & Delete")
+                        Text("Verify & Delete", style = MaterialTheme.typography.labelLarge)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = onDismissDeletionFeedback) {
-                        Text("Cancel")
+                        Text("Cancel", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             )
@@ -823,17 +807,78 @@ fun UserProfileScreen(
         is AccountDeletionState.Error -> {
             AlertDialog(
                 onDismissRequest = onDismissDeletionFeedback,
-                title = { Text("Account Deletion Failed") },
-                text = { Text(accountDeletionState.message) },
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                title = { Text("Account Deletion Failed", style = MaterialTheme.typography.titleLarge) },
+                text = { Text(accountDeletionState.message, style = MaterialTheme.typography.bodyMedium) },
                 confirmButton = {
                     TextButton(onClick = onDismissDeletionFeedback) {
-                        Text("OK")
+                        Text("OK", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             )
         }
         AccountDeletionState.Idle,
         AccountDeletionState.Completed -> Unit
+    }
+}
+
+@Composable
+private fun ProfileSettingsActionRow(
+    icon: ImageVector,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    testTag: String,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 4.dp)
+            .minimumInteractiveComponentSize()
+            .testTag(testTag)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(iconTint.copy(alpha = 0.14f))
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = titleColor
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -845,8 +890,8 @@ private fun ProfileStatTile(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
     ) {
         Column(
@@ -876,105 +921,93 @@ private fun SavedProjectCard(
     onOpenInStudio: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("profile_project_${project.id}")
+    VedographiContentCard(
+        contentPadding = PaddingValues(16.dp),
+        modifier = Modifier.testTag("profile_project_${project.id}")
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)
-                    ) {
-                        Text(
-                            text = project.kind,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = project.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.minimumInteractiveComponentSize()
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.DeleteOutline,
-                        contentDescription = "Delete project",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            SelectionContainer {
+                VedographiPillBadge(text = project.kind)
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = project.content,
-                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = project.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.minimumInteractiveComponentSize()
             ) {
-                Button(
-                    onClick = onCopy,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                ) {
-                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy", maxLines = 1, softWrap = false)
-                }
-                OutlinedButton(
-                    onClick = onOpenInStudio,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                ) {
-                    Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Studio", maxLines = 1, softWrap = false)
-                }
-                OutlinedButton(
-                    onClick = onShare,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(44.dp)
-                ) {
-                    Icon(Icons.Filled.Share, contentDescription = "Share project", modifier = Modifier.size(17.dp))
-                }
+                Icon(
+                    imageVector = Icons.Filled.DeleteOutline,
+                    contentDescription = "Delete project",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        SelectionContainer {
+            Text(
+                text = project.content,
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = onCopy,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.primaryButtonColors(),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(VedographiDefaults.ButtonHeight)
+            ) {
+                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Copy", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            }
+            OutlinedButton(
+                onClick = onOpenInStudio,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.outlinedButtonColors(),
+                border = VedographiDefaults.outlinedButtonBorder(),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(VedographiDefaults.ButtonHeight)
+            ) {
+                Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Studio", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            }
+            OutlinedButton(
+                onClick = onShare,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.outlinedButtonColors(),
+                border = VedographiDefaults.outlinedButtonBorder(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+            ) {
+                Icon(Icons.Filled.Share, contentDescription = "Share project", modifier = Modifier.size(17.dp))
             }
         }
     }

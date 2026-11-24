@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,18 +39,27 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ChipColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SegmentedButtonColors
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SelectableChipColors
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -60,29 +70,275 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.domain.SocialPlatform
 import com.example.ui.FontPreviewItem
+import com.example.ui.theme.CrispWhite
 import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.FacebookBlue
 import com.example.ui.theme.InstagramMagenta
+import com.example.ui.theme.KalamFontFamily
 import com.example.ui.theme.NeonOrchid
+import com.example.ui.theme.ObsidianIconPlate
 import com.example.ui.theme.RoseHeart
 import com.example.ui.theme.RoyalViolet
 import com.example.ui.theme.TelegramBlue
 import com.example.ui.theme.WhatsAppGreen
+
+object VedographiDefaults {
+    val ButtonCornerRadius = 14.dp
+    val InputCornerRadius = 16.dp
+    val CardCornerRadius = 20.dp
+    val HeroCornerRadius = 24.dp
+    val ButtonHeight = 48.dp
+
+    @Composable
+    fun primaryButtonColors(
+        containerColor: Color = RoyalViolet,
+        contentColor: Color = CrispWhite
+    ): ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = containerColor,
+        contentColor = contentColor,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+    )
+
+    @Composable
+    fun outlinedButtonColors(): ButtonColors = ButtonDefaults.outlinedButtonColors(
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+    )
+
+    @Composable
+    fun outlinedButtonBorder(enabled: Boolean = true): BorderStroke = BorderStroke(
+        width = 1.dp,
+        color = MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.9f else 0.3f)
+    )
+
+    @Composable
+    fun textFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.75f),
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        focusedLabelColor = MaterialTheme.colorScheme.primary,
+        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+        cursorColor = MaterialTheme.colorScheme.primary,
+        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+        unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        focusedTrailingIconColor = MaterialTheme.colorScheme.primary,
+        unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    @Composable
+    fun filterChipColors(): SelectableChipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = RoyalViolet,
+        selectedLabelColor = CrispWhite,
+        selectedLeadingIconColor = CrispWhite,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    @Composable
+    fun filterChipBorder(selected: Boolean): BorderStroke = FilterChipDefaults.filterChipBorder(
+        enabled = true,
+        selected = selected,
+        borderColor = MaterialTheme.colorScheme.outlineVariant,
+        selectedBorderColor = ElectricViolet.copy(alpha = 0.9f),
+        borderWidth = 1.dp,
+        selectedBorderWidth = 1.25.dp
+    )
+
+    @Composable
+    fun assistChipColors(): ChipColors = AssistChipDefaults.assistChipColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        labelColor = MaterialTheme.colorScheme.onSurface,
+        leadingIconContentColor = MaterialTheme.colorScheme.primary
+    )
+
+    @Composable
+    fun assistChipBorder(): BorderStroke = BorderStroke(
+        width = 1.dp,
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
+
+    @Composable
+    fun segmentedButtonColors(): SegmentedButtonColors = SegmentedButtonDefaults.colors(
+        activeContainerColor = RoyalViolet,
+        activeContentColor = CrispWhite,
+        activeBorderColor = ElectricViolet.copy(alpha = 0.85f),
+        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant
+    )
+}
+
+@Composable
+fun VedographiPillBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    borderColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = modifier
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+fun VedographiHeroCard(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(VedographiDefaults.HeroCornerRadius),
+    contentPadding: PaddingValues = PaddingValues(18.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            width = 1.5.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    ElectricViolet,
+                    NeonOrchid.copy(alpha = 0.9f),
+                    RoyalViolet
+                )
+            )
+        ),
+        tonalElevation = 4.dp,
+        shadowElevation = 8.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            RoyalViolet.copy(alpha = 0.14f),
+                            Color.Transparent
+                        )
+                    )
+                )
+                .padding(contentPadding),
+            content = content
+        )
+    }
+}
+
+@Composable
+fun VedographiContentCard(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(VedographiDefaults.CardCornerRadius),
+    borderColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.72f),
+    onClick: (() -> Unit)? = null,
+    contentPadding: PaddingValues = PaddingValues(16.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val baseModifier = modifier
+        .fillMaxWidth()
+        .clip(shape)
+        .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = baseModifier
+    ) {
+        Column(
+            modifier = Modifier.padding(contentPadding),
+            content = content
+        )
+    }
+}
+
+@Composable
+fun VedographiSectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    action: (@Composable () -> Unit)? = null
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        if (action != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            action()
+        }
+    }
+}
 
 @Composable
 fun VedographiTopHeader(
@@ -106,8 +362,8 @@ fun VedographiTopHeader(
         ) {
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF0E091F),
-                border = BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.45f)),
+                color = ObsidianIconPlate,
+                border = BorderStroke(1.25.dp, ElectricViolet.copy(alpha = 0.65f)),
                 shadowElevation = 6.dp,
                 modifier = Modifier.size(46.dp)
             ) {
@@ -136,8 +392,11 @@ fun VedographiTopHeader(
                 )
                 Text(
                     text = stringResource(R.string.brand_tagline),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = KalamFontFamily,
+                        fontSize = 13.sp
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -151,13 +410,13 @@ fun VedographiTopHeader(
             if (!isOnline) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.55f)),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.testTag("offline_mode_pill")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.CloudOff,
@@ -179,7 +438,7 @@ fun VedographiTopHeader(
                 FilledTonalIconButton(
                     onClick = onAccountClick,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = when {
                             !isOnline -> NeonOrchid
                             isCloudSynced -> EmeraldSuccess
@@ -200,7 +459,7 @@ fun VedographiTopHeader(
             FilledTonalIconButton(
                 onClick = onToggleTheme,
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier
@@ -222,7 +481,8 @@ fun FontPreviewCard(
     onCopy: () -> Unit,
     onToggleFavorite: () -> Unit,
     onShare: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    previewFontFamily: FontFamily? = null
 ) {
     val haptic = LocalHapticFeedback.current
     val heartScale by animateFloatAsState(
@@ -238,7 +498,7 @@ fun FontPreviewCard(
         targetValue = if (item.isRecentlyCopied) {
             EmeraldSuccess
         } else {
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.72f)
         },
         label = "card_border"
     )
@@ -248,161 +508,135 @@ fun FontPreviewCard(
         onCopy()
     }
 
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        border = BorderStroke(1.dp, borderColor),
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = triggerCopy)
-            .testTag("font_card_${item.spec.id}")
+    VedographiContentCard(
+        borderColor = borderColor,
+        onClick = triggerCopy,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        modifier = modifier.testTag("font_card_${item.spec.id}")
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = item.spec.name,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
-                    ) {
-                        Text(
-                            text = item.spec.category.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                    if (item.spec.badge != null) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = NeonOrchid.copy(alpha = 0.18f)
-                        ) {
-                            Text(
-                                text = item.spec.badge,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = NeonOrchid,
-                                maxLines = 1,
-                                softWrap = false,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                }
-
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onToggleFavorite()
-                    },
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .testTag("fav_button_${item.spec.id}")
-                ) {
-                    Icon(
-                        imageVector = if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = stringResource(R.string.action_favorite),
-                        tint = if (item.isFavorite) RoseHeart else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.scale(heartScale)
+                Text(
+                    text = item.spec.name,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                VedographiPillBadge(text = item.spec.category.label)
+                if (item.spec.badge != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    VedographiPillBadge(
+                        text = item.spec.badge,
+                        containerColor = NeonOrchid.copy(alpha = 0.16f),
+                        contentColor = NeonOrchid,
+                        borderColor = NeonOrchid.copy(alpha = 0.45f)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = item.previewText,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontSize = 20.sp,
-                    lineHeight = 28.sp
-                ),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+            IconButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onToggleFavorite()
+                },
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .testTag("fav_button_${item.spec.id}")
             ) {
-                Button(
-                    onClick = triggerCopy,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (item.isRecentlyCopied) EmeraldSuccess else MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    ),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .testTag("copy_button_${item.spec.id}")
-                ) {
-                    AnimatedContent(
-                        targetState = item.isRecentlyCopied,
-                        label = "copy_state"
-                    ) { copied ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (copied) stringResource(R.string.action_copied) else stringResource(R.string.action_copy),
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
+                Icon(
+                    imageVector = if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = stringResource(R.string.action_favorite),
+                    tint = if (item.isFavorite) RoseHeart else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.scale(heartScale)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = item.previewText,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontFamily = previewFontFamily ?: MaterialTheme.typography.titleLarge.fontFamily,
+                fontSize = 21.sp,
+                lineHeight = 30.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = triggerCopy,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.primaryButtonColors(
+                    containerColor = if (item.isRecentlyCopied) EmeraldSuccess else RoyalViolet,
+                    contentColor = CrispWhite
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(VedographiDefaults.ButtonHeight)
+                    .testTag("copy_button_${item.spec.id}")
+            ) {
+                AnimatedContent(
+                    targetState = item.isRecentlyCopied,
+                    label = "copy_state"
+                ) { copied ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (copied) stringResource(R.string.action_copied) else stringResource(R.string.action_copy),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
                 }
+            }
 
-                OutlinedButton(
-                    onClick = onShare,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier
-                        .height(48.dp)
-                        .testTag("share_button_${item.spec.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Share,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.action_share),
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
+            OutlinedButton(
+                onClick = onShare,
+                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                colors = VedographiDefaults.outlinedButtonColors(),
+                border = VedographiDefaults.outlinedButtonBorder(),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .height(VedographiDefaults.ButtonHeight)
+                    .testTag("share_button_${item.spec.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.action_share),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
@@ -441,7 +675,7 @@ fun SocialShareBottomSheet(
 
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -499,28 +733,30 @@ fun SocialShareBottomSheet(
             ) {
                 OutlinedButton(
                     onClick = onCopy,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                    colors = VedographiDefaults.outlinedButtonColors(),
+                    border = VedographiDefaults.outlinedButtonBorder(),
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp)
+                        .height(VedographiDefaults.ButtonHeight)
                         .testTag("sheet_copy_btn")
                 ) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.action_copy))
+                    Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelLarge)
                 }
                 Button(
                     onClick = { onSharePlatform(SocialPlatform.MORE) },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet),
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                    colors = VedographiDefaults.primaryButtonColors(),
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp)
+                        .height(VedographiDefaults.ButtonHeight)
                         .testTag("sheet_more_btn")
                 ) {
                     Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.share_more))
+                    Text(stringResource(R.string.share_more), style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -576,11 +812,11 @@ fun EmptyStateCard(
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp)
+            .padding(vertical = 8.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -591,12 +827,12 @@ fun EmptyStateCard(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -604,13 +840,15 @@ fun EmptyStateCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
     }
