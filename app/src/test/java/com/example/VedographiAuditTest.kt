@@ -1,14 +1,27 @@
 package com.example
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.data.PreferencesRepository
 import com.example.domain.FontCatalog
 import com.example.domain.FontCategory
 import com.example.domain.SavedCreation
 import com.example.domain.StudioGenerators
 import com.example.domain.UnicodeFontEngine
+import com.example.ui.BatchCopyVariation
+import com.example.ui.VedographiViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -43,8 +56,9 @@ class VedographiAuditTest {
     }
 
     @Test
-    fun `search and category filters match expected fonts across all 10 categories`() {
+    fun `search and category filters match expected fonts across all 11 categories`() {
         val categories = listOf(
+            FontCategory.HINDI_CALLIGRAPHY,
             FontCategory.STYLISH,
             FontCategory.BOLD,
             FontCategory.CURSIVE,
@@ -149,5 +163,133 @@ class VedographiAuditTest {
         )
         assertTrue(bio.contains("हर शब्द का अपना अंदाज़!"))
         assertTrue(bio.contains(UnicodeFontEngine.sansBold("VEDOGRAPHi")))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `search query filters fonts by name, style category, and falls back across categories`() {
+        val dispatcher = UnconfinedTestDispatcher()
+        Dispatchers.setMain(dispatcher)
+        val store = ViewModelStore()
+        try {
+            runTest(dispatcher) {
+                val testDataStore = PreferenceDataStoreFactory.create(
+                    scope = backgroundScope,
+                    produceFile = { tempFolder.newFile("vedographi_search_prefs.preferences_pb") }
+                )
+                val factory = viewModelFactory {
+                    initializer {
+                        VedographiViewModel(repo = PreferencesRepository(testDataStore))
+                    }
+                }
+                val vm = ViewModelProvider(store, factory)[VedographiViewModel::class.java]
+                val collectJob = backgroundScope.launch(dispatcher) {
+                    vm.filteredFontItems.collect { }
+                }
+                val fallbackJob = backgroundScope.launch(dispatcher) {
+                    vm.isSearchExpandedAcrossAll.collect { }
+                }
+                advanceUntilIdle()
+
+                // 1. Filter by style category name
+                vm.updateSearchQuery("Hindi Calligraphy")
+                val hindiResults = vm.filteredFontItems.value
+                assertTrue(hindiResults.size >= 20)
+                assertTrue(hindiResults.all { it.spec.category == FontCategory.HINDI_CALLIGRAPHY })
+
+                // 2. Filter by multi-word font name
+                vm.updateSearchQuery("Kalash Royal")
+                val kalashResults = vm.filteredFontItems.value
+                assertTrue(kalashResults.any { it.spec.id == "hindi_kalash_royal" })
+
+                // 3. Cross-category fallback when another category chip is active
+                vm.selectCategory(FontCategory.BOLD)
+                vm.updateSearchQuery("Gothic")
+                val gothicFallbackResults = vm.filteredFontItems.value
+                assertTrue(gothicFallbackResults.isNotEmpty())
+                assertTrue(gothicFallbackResults.all { it.spec.category == FontCategory.GOTHIC })
+                assertTrue(vm.isSearchExpandedAcrossAll.value)
+
+                // 4. Clearing search restores selected category list
+                vm.updateSearchQuery("")
+                assertFalse(vm.isSearchExpandedAcrossAll.value)
+                assertTrue(vm.filteredFontItems.value.all { it.spec.category == FontCategory.BOLD })
+
+                collectJob.cancel()
+                fallbackJob.cancel()
+            }
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `batch copy all action builds multi-variation clipboard output with selection and label options`() {
+        val dispatcher = UnconfinedTestDispatcher()
+        Dispatchers.setMain(dispatcher)
+        val store = ViewModelStore()
+        try {
+            runTest(dispatcher) {
+                val testDataStore = PreferenceDataStoreFactory.create(
+                    scope = backgroundScope,
+                    produceFile = { tempFolder.newFile("vedographi_batch_copy_prefs.preferences_pb") }
+                )
+                val factory = viewModelFactory {
+                    initializer {
+                        VedographiViewModel(repo = PreferencesRepository(testDataStore))
+                    }
+                }
+                val vm = ViewModelProvider(store, factory)[VedographiViewModel::class.java]
+                val collectJob = backgroundScope.launch(dispatcher) {
+                    vm.filteredFontItems.collect { }
+                }
+                advanceUntilIdle()
+
+                vm.updateInputText("Vedographi Batch")
+                vm.selectCategory(FontCategory.BOLD)
+                advanceUntilIdle()
+
+                // Open batch copy sheet for active category
+                vm.openBatchCopySheetForFonts()
+                val sheet = vm.batchCopySheet.value
+                assertTrue(sheet != null && sheet.variations.size >= 20)
+                assertEquals("Vedographi Batch", sheet!!.sourceText)
+
+                // Subset selection with style labels ON
+                val firstTwoIds = sheet.variations.take(2).map { it.id }.toSet()
+                val withLabels = vm.buildCopyAllText(selectedIds = firstTwoIds, includeStyleNames = true)
+                val labeledLines = withLabels.lines()
+                assertEquals(2, labeledLines.size)
+                assertTrue(labeledLines[0].startsWith("${sheet.variations[0].styleName}: "))
+
+                // Subset selection with style labels OFF (pure variations)
+                val cleanOnly = vm.buildCopyAllText(selectedIds = firstTwoIds, includeStyleNames = false)
+                val cleanLines = cleanOnly.lines()
+                assertEquals(2, cleanLines.size)
+                assertEquals(sheet.variations[0].styledText, cleanLines[0])
+                assertEquals(sheet.variations[1].styledText, cleanLines[1])
+
+                // Generic variations (e.g., usernames/templates) formatting & sheet dismiss
+                val customBatch = listOf(
+                    BatchCopyVariation("u1", "Royal #1", "♛ Vedo ♛"),
+                    BatchCopyVariation("u2", "Royal #2", "★彡 Vedo 彡★")
+                )
+                assertEquals(
+                    "♛ Vedo ♛\n★彡 Vedo 彡★",
+                    vm.formatBatchCopyText(customBatch, selectedIds = setOf("u1", "u2"), includeStyleNames = false)
+                )
+                assertEquals("", vm.formatBatchCopyText(customBatch, selectedIds = emptySet(), includeStyleNames = true))
+
+                vm.dismissBatchCopySheet()
+                assertEquals(null, vm.batchCopySheet.value)
+
+                collectJob.cancel()
+            }
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
     }
 }

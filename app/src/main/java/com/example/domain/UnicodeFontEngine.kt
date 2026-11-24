@@ -200,6 +200,44 @@ object UnicodeFontEngine {
         return sb.toString()
     }
 
+    /**
+     * Converts ASCII numerals 0-9 into Devanagari numerals ०-९ while preserving
+     * all Devanagari letters, matras, conjuncts, and Latin characters intact.
+     */
+    fun devanagariDigits(input: String): String {
+        if (input.isEmpty()) return input
+        val sb = StringBuilder(input.length)
+        var i = 0
+        while (i < input.length) {
+            val cp = input.codePointAt(i)
+            if (cp in '0'.code..'9'.code) {
+                sb.appendCodePoint(0x0966 + (cp - '0'.code))
+            } else {
+                sb.appendCodePoint(cp)
+            }
+            i += Character.charCount(cp)
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Formats Hindi, Hinglish, or English text in authentic Unicode Hindi Calligraphy style:
+     * preserves all Devanagari words and matras cleanly, optionally converts numerals to
+     * Devanagari digits (०-९), transforms Latin runs with a calligraphy-compatible Unicode alphabet,
+     * and wraps with traditional calligraphic ornament borders.
+     */
+    fun hindiCalligraphyStyle(
+        input: String,
+        englishTransform: (String) -> String = ::boldScript,
+        useDevanagariDigits: Boolean = true,
+        prefix: String = "",
+        suffix: String = ""
+    ): String {
+        val digitNormalized = if (useDevanagariDigits) devanagariDigits(input) else input
+        val styled = englishTransform(digitNormalized)
+        return "$prefix$styled$suffix"
+    }
+
     // ---- Standard Unicode Alphabets ----
 
     fun serifBold(input: String): String =

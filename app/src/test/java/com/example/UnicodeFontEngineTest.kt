@@ -22,8 +22,9 @@ class UnicodeFontEngineTest {
     }
 
     @Test
-    fun `all 10 requested font categories are populated`() {
+    fun `all 11 requested font categories are populated`() {
         val requiredCategories = listOf(
+            FontCategory.HINDI_CALLIGRAPHY,
             FontCategory.STYLISH,
             FontCategory.BOLD,
             FontCategory.CURSIVE,
@@ -92,5 +93,17 @@ class UnicodeFontEngineTest {
         val names = StudioGenerators.generateUsernames("Vedo", UsernameVibe.ROYAL, seed = 1)
         assertTrue(names.size >= 24)
         assertTrue(names.all { it.isNotBlank() })
+    }
+
+    @Test
+    fun `hindi calligraphy category includes 20+ Unicode styles with Devanagari numerals and paired presets`() {
+        val hindiStyles = FontCatalog.allStyles.filter { it.category == FontCategory.HINDI_CALLIGRAPHY }
+        assertTrue("Expected >= 20 Hindi Calligraphy styles, got ${hindiStyles.size}", hindiStyles.size >= 20)
+        hindiStyles.forEach { spec ->
+            assertTrue("Missing calligraphyPresetId for ${spec.id}", !spec.calligraphyPresetId.isNullOrBlank())
+            val out = spec.transform("नमस्ते 2026 Vedo")
+            assertTrue("Expected Hindi text preserved in ${spec.id}: $out", out.contains("नमस्ते"))
+            assertTrue("Expected Devanagari numerals in ${spec.id}: $out", out.contains("२०२६"))
+        }
     }
 }

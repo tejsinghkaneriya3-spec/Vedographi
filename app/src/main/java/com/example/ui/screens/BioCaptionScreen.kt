@@ -52,10 +52,13 @@ import androidx.compose.ui.unit.dp
 import com.example.domain.BioCategory
 import com.example.domain.BioPlatform
 import com.example.domain.StudioGenerators
+import com.example.ui.components.CopyFeedbackPreviewBox
 import com.example.ui.components.VedographiContentCard
 import com.example.ui.components.VedographiDefaults
 import com.example.ui.components.VedographiHeroCard
+import com.example.ui.components.rememberCopyPulseState
 import com.example.ui.theme.CrispWhite
+import com.example.ui.theme.HindiCalligraphyPreset
 import com.example.ui.theme.NeonOrchid
 import com.example.ui.theme.RoyalViolet
 
@@ -154,6 +157,7 @@ fun BioCaptionScreen(
 
         // Live Profile Mockup Preview
         item(key = "bio_preview_card") {
+            val copyPulse = rememberCopyPulseState()
             VedographiHeroCard(contentPadding = PaddingValues(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -193,19 +197,25 @@ fun BioCaptionScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Surface(
+                CopyFeedbackPreviewBox(
+                    pulseState = copyPulse,
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    SelectionContainer {
-                        Text(
-                            text = generatedPreview,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(14.dp)
-                        )
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = generatedPreview,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(14.dp)
+                            )
+                        }
                     }
                 }
 
@@ -216,7 +226,10 @@ fun BioCaptionScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
-                        onClick = { onCopyBio(generatedPreview) },
+                        onClick = {
+                            copyPulse.trigger()
+                            onCopyBio(generatedPreview)
+                        },
                         shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                         colors = VedographiDefaults.primaryButtonColors(),
                         modifier = Modifier
@@ -294,9 +307,13 @@ fun BioCaptionScreen(
                             selected = selected,
                             onClick = { onSelectFont(spec.id) },
                             label = {
+                                val chipFont = spec.calligraphyPresetId
+                                    ?.let { HindiCalligraphyPreset.fromId(it).fontFamily }
+                                    ?: MaterialTheme.typography.labelLarge.fontFamily
                                 Text(
                                     spec.transform(spec.name.split(" ").first()),
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = chipFont),
+                                    maxLines = 1
                                 )
                             },
                             colors = VedographiDefaults.filterChipColors(),

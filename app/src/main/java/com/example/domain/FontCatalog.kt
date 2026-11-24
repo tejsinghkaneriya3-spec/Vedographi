@@ -24,6 +24,34 @@ object FontCatalog {
         transform = { input -> "$prefix${base(input)}$suffix" }
     )
 
+    private fun hindiStyle(
+        id: String,
+        name: String,
+        prefix: String,
+        suffix: String,
+        calligraphyPresetId: String,
+        trending: Boolean = false,
+        badge: String = "हिंदी",
+        useDevanagariDigits: Boolean = true,
+        base: (String) -> String
+    ) = FontStyleSpec(
+        id = id,
+        name = name,
+        category = FontCategory.HINDI_CALLIGRAPHY,
+        isTrending = trending,
+        badge = badge,
+        calligraphyPresetId = calligraphyPresetId,
+        transform = { input ->
+            UnicodeFontEngine.hindiCalligraphyStyle(
+                input = input,
+                englishTransform = base,
+                useDevanagariDigits = useDevanagariDigits,
+                prefix = prefix,
+                suffix = suffix
+            )
+        }
+    )
+
     val allStyles: List<FontStyleSpec> = listOf(
         // =========================================================
         // 1. STYLISH (22 styles)
@@ -724,23 +752,75 @@ object FontCatalog {
         wrapped("fancy_desi_swastik", "Shubh Swag", FontCategory.FANCY, "ॐ✦ ", " ✦ॐ") {
             UnicodeFontEngine.serifBold(it)
         },
-        wrapped("hindi_kalash_royal", "Kalash Royal", FontCategory.FANCY, "🪷꧁ ", " ꧂🪷", trending = true, badge = "HINDI") {
+
+        // =========================================================
+        // 11. HINDI CALLIGRAPHY (22 stylized Unicode Devanagari fonts)
+        // =========================================================
+        hindiStyle("hindi_kalash_royal", "कलश रॉयल • Kalash Royal", "🪷꧁ ", " ꧂🪷", calligraphyPresetId = "rozha_one", trending = true, badge = "HINDI") {
             UnicodeFontEngine.boldScript(it)
         },
-        wrapped("hindi_morpankh_script", "Morpankh Calligraphy", FontCategory.FANCY, "🦚❦ ", " ❦🦚", badge = "HINDI") {
+        hindiStyle("hindi_morpankh_script", "मोरपंख • Morpankh Script", "🦚❦ ", " ❦🦚", calligraphyPresetId = "amita", trending = true, badge = "AMITA") {
             UnicodeFontEngine.scriptCursive(it)
         },
-        wrapped("hindi_shlok_gold", "Shlok Gold Frame", FontCategory.FANCY, "॥ ॐ ", " ॐ ॥", badge = "HINDI") {
+        hindiStyle("hindi_shlok_gold", "श्लोक मंत्र • Shlok Gold", "॥ ॐ ", " ॐ ॥", calligraphyPresetId = "yatra_one", trending = true, badge = "VEDIC") {
             UnicodeFontEngine.serifBoldItalic(it)
         },
-        wrapped("hindi_diya_festive", "Diya Festive Glow", FontCategory.FANCY, "🪔✨ ", " ✨🪔", badge = "HINDI") {
-            UnicodeFontEngine.sansBoldItalic(it)
-        },
-        wrapped("hindi_shayari_quote", "Shayari Calligraphy", FontCategory.FANCY, "❝❦ ", " ❦❞", badge = "HINDI") {
+        hindiStyle("hindi_shayari_quote", "शायरी कलाम • Shayari Ink", "❝❦ ", " ❦❞", calligraphyPresetId = "kalam", trending = true, badge = "SHAYARI") {
             UnicodeFontEngine.serifItalic(it)
         },
-        wrapped("hindi_tilak_swag", "Tilak Swag", FontCategory.FANCY, "🚩彡 ", " 彡🚩", badge = "HINDI") {
+        hindiStyle("hindi_diya_festive", "दीया उत्सव • Diya Glow", "🪔✨ ", " ✨🪔", calligraphyPresetId = "tillana", badge = "FESTIVE") {
+            UnicodeFontEngine.sansBoldItalic(it)
+        },
+        hindiStyle("hindi_tilak_swag", "तिलक स्वैग • Tilak Swag", "🚩彡 ", " 彡🚩", calligraphyPresetId = "yatra_one", badge = "SWAG") {
             UnicodeFontEngine.sansBold(it)
+        },
+        hindiStyle("hindi_rajwada_crown", "रजवाड़ा शाही • Rajwada Royal", "꧁༒ॐ ", " ॐ༒꧂", calligraphyPresetId = "rozha_one", trending = true, badge = "ROYAL") {
+            UnicodeFontEngine.serifBold(it)
+        },
+        hindiStyle("hindi_kavyanjali_scroll", "काव्यांजलि • Kavyanjali Scroll", "༺❦ ", " ❦༻", calligraphyPresetId = "amita", badge = "KAVYA") {
+            UnicodeFontEngine.boldScript(it)
+        },
+        hindiStyle("hindi_shree_temple", "श्री मंगल • Shree Mandir", "॥ श्री ", " श्री ॥", calligraphyPresetId = "rozha_one", badge = "SHUBH") {
+            UnicodeFontEngine.serifBold(it)
+        },
+        hindiStyle("hindi_chandan_minimal", "चंदन मोती • Chandan Minimal", "•┈┈✦ ", " ✦┈┈•", calligraphyPresetId = "gotu", badge = "MINIMAL") {
+            UnicodeFontEngine.smallCaps(it)
+        },
+        hindiStyle("hindi_gulab_guldasta", "गुलदस्ता • Floral Hindi", "🌺❀ ", " ❀🌺", calligraphyPresetId = "tillana", badge = "FLORAL") {
+            UnicodeFontEngine.curvyCute(it)
+        },
+        hindiStyle("hindi_bansuri_sur", "बांसुरी सुर • Bansuri Melody", "🪈♪ ", " ♪🪈", calligraphyPresetId = "amita", badge = "SUR") {
+            UnicodeFontEngine.scriptCursive(it)
+        },
+        hindiStyle("hindi_trishul_tejas", "देवभूमि • Devbhoomi Mantra", "🔱॥ ", " ॥🔱", calligraphyPresetId = "yatra_one", badge = "TEJAS") {
+            UnicodeFontEngine.boldFraktur(it)
+        },
+        hindiStyle("hindi_rangoli_utsav", "रंगोली • Rangoli Utsav", "❈✺ ", " ✺❈", calligraphyPresetId = "tillana", badge = "ART") {
+            UnicodeFontEngine.doubleStruck(it)
+        },
+        hindiStyle("hindi_prem_patra", "प्रेम पत्र • Prem Patra", "💌❦ ", " ❦💌", calligraphyPresetId = "kalam", badge = "LOVE") {
+            UnicodeFontEngine.boldScript(it)
+        },
+        hindiStyle("hindi_nakshatra_star", "नक्षत्र • Nakshatra Glow", "⋆｡°✦ ", " ✦°｡⋆", calligraphyPresetId = "gotu", badge = "STAR") {
+            UnicodeFontEngine.smallCaps(it)
+        },
+        hindiStyle("hindi_surya_radiance", "सूर्य तेज • Surya Radiant", "☀️❖ ", " ❖☀️", calligraphyPresetId = "rozha_one", badge = "SOLAR") {
+            UnicodeFontEngine.serifBoldItalic(it)
+        },
+        hindiStyle("hindi_mehfil_shayar", "महफ़िल • Mehfil Quote", "🎶❝ ", " ❞🎶", calligraphyPresetId = "amita", badge = "GHAZAL") {
+            UnicodeFontEngine.serifItalic(it)
+        },
+        hindiStyle("hindi_shabd_danda", "शब्द सागर • Shabd Sagar", "📜॰ ", " ।📜", calligraphyPresetId = "kalam", badge = "CLASSIC") {
+            UnicodeFontEngine.serifBold(it)
+        },
+        hindiStyle("hindi_desi_taaj", "देसी ताज • Desi Crown", "👑꧁ ", " ꧂👑", calligraphyPresetId = "yatra_one", badge = "KING") {
+            UnicodeFontEngine.sansBold(it)
+        },
+        hindiStyle("hindi_kalamkari_box", "कलमकारी • Kalamkari Frame", "╭━━━✦ ॐ ✦━━━╮\n  ", "\n╰━━━✦ ॐ ✦━━━╯", calligraphyPresetId = "kalam", badge = "FRAME") {
+            UnicodeFontEngine.boldScript(it)
+        },
+        hindiStyle("hindi_darbar_banner", "शाही दरबार • Darbar Box", "╔═══❖•° ", " °•❖═══╗", calligraphyPresetId = "gotu", badge = "PRO") {
+            UnicodeFontEngine.sansBoldItalic(it)
         }
     )
 

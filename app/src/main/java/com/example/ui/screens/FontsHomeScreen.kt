@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Brush
@@ -43,6 +45,7 @@ import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +73,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,12 +81,14 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.domain.FontCategory
 import com.example.ui.FontPreviewItem
+import com.example.ui.components.CopyFeedbackPreviewBox
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.FontPreviewCard
 import com.example.ui.components.VedographiDefaults
 import com.example.ui.components.VedographiHeroCard
 import com.example.ui.components.VedographiPillBadge
 import com.example.ui.components.VedographiSectionHeader
+import com.example.ui.components.rememberCopyPulseState
 import com.example.ui.theme.CalligraphyCanvasEnd
 import com.example.ui.theme.CalligraphyCanvasMid
 import com.example.ui.theme.CalligraphyCanvasStart
@@ -126,7 +132,8 @@ fun FontsHomeScreen(
     selectedCalligraphyPreset: HindiCalligraphyPreset = HindiCalligraphyPreset.KALAM,
     onSelectCalligraphyPreset: (HindiCalligraphyPreset) -> Unit = {},
     onCopyCalligraphyText: (String) -> Unit = {},
-    onShareCalligraphyCard: () -> Unit = {}
+    onShareCalligraphyCard: () -> Unit = {},
+    isSearchExpandedAcrossAll: Boolean = false
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -138,13 +145,86 @@ fun FontsHomeScreen(
         derivedStateOf { listState.firstVisibleItemIndex > 3 }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 84.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+    Column(modifier = modifier.fillMaxSize()) {
+        // Pinned Font Search Bar at the top of the Font Selection screen
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 4.dp, bottom = 8.dp)
         ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.search_fonts_placeholder),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Search fonts"
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            VedographiPillBadge(text = "${filteredItems.size}")
+                            IconButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSearchChange("")
+                                },
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("clear_search_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Clear,
+                                    contentDescription = stringResource(R.string.action_clear)
+                                )
+                            }
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }
+                ),
+                shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                colors = VedographiDefaults.textFieldColors(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("search_fonts_field")
+            )
+        }
+
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 12.dp, bottom = 84.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
             // 1. Large Prominent Text Input Box at the top
             item(key = "input_hero") {
                 VedographiHeroCard(
@@ -251,7 +331,7 @@ fun FontsHomeScreen(
                     ) {
                         Text(
                             text = if (isInputEmpty) {
-                                "220+ styles ready"
+                                "235+ styles ready"
                             } else {
                                 "${inputText.length} chars • Live transform"
                             },
@@ -394,194 +474,178 @@ fun FontsHomeScreen(
                 }
             }
 
-            // 1B. Hindi Calligraphy Studio Card
-            item(key = "hindi_calligraphy_studio") {
-                val calligraphyDisplay = inputText.ifBlank { stringResource(R.string.brand_tagline) }
-                Surface(
-                    shape = RoundedCornerShape(VedographiDefaults.HeroCornerRadius),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(
-                        1.25.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                NeonOrchid.copy(alpha = 0.75f),
-                                ElectricViolet.copy(alpha = 0.75f)
+            // 1B. Hindi Calligraphy Studio Card (hidden during active text search so results appear immediately)
+            if (searchQuery.isBlank() &&
+                (selectedCategory == FontCategory.ALL || selectedCategory == FontCategory.HINDI_CALLIGRAPHY)
+            ) {
+                item(key = "hindi_calligraphy_studio") {
+                    val calligraphyDisplay = inputText.ifBlank { stringResource(R.string.brand_tagline) }
+                    val calligraphyCopyPulse = rememberCopyPulseState()
+                    Surface(
+                        shape = RoundedCornerShape(VedographiDefaults.HeroCornerRadius),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            1.25.dp,
+                            Brush.linearGradient(
+                                listOf(
+                                    NeonOrchid.copy(alpha = 0.75f),
+                                    ElectricViolet.copy(alpha = 0.75f)
+                                )
                             )
-                        )
-                    ),
-                    tonalElevation = 3.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .testTag("hindi_calligraphy_card")
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(16.dp)
+                        ),
+                        tonalElevation = 3.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .testTag("hindi_calligraphy_card")
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(16.dp)
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Brush,
-                                    contentDescription = null,
-                                    tint = NeonOrchid,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(R.string.hindi_calligraphy_title),
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            VedographiPillBadge(text = selectedCalligraphyPreset.styleNote)
-                        }
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(HindiCalligraphyPreset.entries, key = { it.id }) { preset ->
-                                val selected = preset == selectedCalligraphyPreset
-                                FilterChip(
-                                    selected = selected,
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        onSelectCalligraphyPreset(preset)
-                                    },
-                                    label = {
-                                        Text(
-                                            text = "${preset.hindiLabel} • ${preset.displayName}",
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontFamily = preset.fontFamily
-                                            ),
-                                            maxLines = 1
-                                        )
-                                    },
-                                    colors = VedographiDefaults.filterChipColors(),
-                                    border = VedographiDefaults.filterChipBorder(selected),
-                                    modifier = Modifier
-                                        .height(40.dp)
-                                        .testTag("calligraphy_chip_${preset.id}")
-                                )
-                            }
-                        }
-
-                        // Live Calligraphy Canvas Preview
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(
-                                    Brush.linearGradient(
-                                        colors = listOf(
-                                            CalligraphyCanvasStart,
-                                            CalligraphyCanvasMid,
-                                            CalligraphyCanvasEnd
-                                        )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Brush,
+                                        contentDescription = null,
+                                        tint = NeonOrchid,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                )
-                                .padding(horizontal = 16.dp, vertical = 20.dp)
-                        ) {
-                            Text(
-                                text = calligraphyDisplay,
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontFamily = selectedCalligraphyPreset.fontFamily,
-                                    fontSize = 24.sp,
-                                    lineHeight = 34.sp
-                                ),
-                                color = CrispWhite,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onCopyCalligraphyText(calligraphyDisplay)
-                                },
-                                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
-                                colors = VedographiDefaults.outlinedButtonColors(),
-                                border = VedographiDefaults.outlinedButtonBorder(),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(VedographiDefaults.ButtonHeight)
-                                    .testTag("copy_calligraphy_text_btn")
-                            ) {
-                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Copy Text", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.hindi_calligraphy_title),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                VedographiPillBadge(text = selectedCalligraphyPreset.styleNote)
                             }
-                            Button(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onShareCalligraphyCard()
-                                },
-                                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
-                                colors = VedographiDefaults.primaryButtonColors(),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(VedographiDefaults.ButtonHeight)
-                                    .testTag("share_calligraphy_card_btn")
+
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    stringResource(R.string.share_calligraphy_card),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
+                                items(HindiCalligraphyPreset.entries, key = { it.id }) { preset ->
+                                    val selected = preset == selectedCalligraphyPreset
+                                    FilterChip(
+                                        selected = selected,
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            onSelectCalligraphyPreset(preset)
+                                        },
+                                        label = {
+                                            Text(
+                                                text = "${preset.hindiLabel} • ${preset.displayName}",
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontFamily = preset.fontFamily
+                                                ),
+                                                maxLines = 1
+                                            )
+                                        },
+                                        colors = VedographiDefaults.filterChipColors(),
+                                        border = VedographiDefaults.filterChipBorder(selected),
+                                        modifier = Modifier
+                                            .height(40.dp)
+                                            .testTag("calligraphy_chip_${preset.id}")
+                                    )
+                                }
+                            }
+
+                            // Live Calligraphy Canvas Preview
+                            CopyFeedbackPreviewBox(
+                                pulseState = calligraphyCopyPulse,
+                                shape = RoundedCornerShape(18.dp),
+                                highlightColor = NeonOrchid,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(
+                                            Brush.linearGradient(
+                                                colors = listOf(
+                                                    CalligraphyCanvasStart,
+                                                    CalligraphyCanvasMid,
+                                                    CalligraphyCanvasEnd
+                                                )
+                                            )
+                                        )
+                                        .padding(horizontal = 16.dp, vertical = 20.dp)
+                                ) {
+                                    Text(
+                                        text = calligraphyDisplay,
+                                        style = MaterialTheme.typography.headlineSmall.copy(
+                                            fontFamily = selectedCalligraphyPreset.fontFamily,
+                                            fontSize = 24.sp,
+                                            lineHeight = 34.sp
+                                        ),
+                                        color = CrispWhite,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        calligraphyCopyPulse.trigger()
+                                        onCopyCalligraphyText(calligraphyDisplay)
+                                    },
+                                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                                    colors = VedographiDefaults.outlinedButtonColors(),
+                                    border = VedographiDefaults.outlinedButtonBorder(),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(VedographiDefaults.ButtonHeight)
+                                        .testTag("copy_calligraphy_text_btn")
+                                ) {
+                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Copy Text", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                                }
+                                Button(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onShareCalligraphyCard()
+                                    },
+                                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                                    colors = VedographiDefaults.primaryButtonColors(),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(VedographiDefaults.ButtonHeight)
+                                        .testTag("share_calligraphy_card_btn")
+                                ) {
+                                    Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        stringResource(R.string.share_calligraphy_card),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // 2. Search Bar
-            item(key = "search_bar") {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = onSearchChange,
-                    placeholder = { Text(stringResource(R.string.search_fonts_placeholder)) },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Search, contentDescription = null)
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(
-                                onClick = { onSearchChange("") },
-                                modifier = Modifier.minimumInteractiveComponentSize()
-                            ) {
-                                Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.action_clear))
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
-                    colors = VedographiDefaults.textFieldColors(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .testTag("search_fonts_field")
-                )
-            }
-
-            // 3. Category Chips
+            // 2. Category Chips
             item(key = "category_chips") {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
@@ -592,6 +656,17 @@ fun FontsHomeScreen(
                         FilterChip(
                             selected = selected,
                             onClick = { onSelectCategory(category) },
+                            leadingIcon = if (category == FontCategory.HINDI_CALLIGRAPHY) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Filled.Brush,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            } else {
+                                null
+                            },
                             label = {
                                 Text(
                                     text = category.label,
@@ -646,15 +721,18 @@ fun FontsHomeScreen(
             // 5. Section Header + Font Count Pill
             item(key = "list_header") {
                 VedographiSectionHeader(
-                    title = if (selectedCategory == FontCategory.ALL) {
-                        stringResource(R.string.all_fonts_section_title)
-                    } else {
-                        selectedCategory.label
+                    title = when {
+                        isSearchExpandedAcrossAll -> "All Matching Fonts"
+                        searchQuery.isNotBlank() && selectedCategory == FontCategory.ALL -> "Search Results"
+                        selectedCategory == FontCategory.ALL -> stringResource(R.string.all_fonts_section_title)
+                        else -> selectedCategory.label
                     },
-                    subtitle = if (isInputEmpty) {
-                        "Previewing \"VEDOGRAPHi\" — type above to transform live"
-                    } else {
-                        null
+                    subtitle = when {
+                        isSearchExpandedAcrossAll -> "Showing matches across all categories for \"$searchQuery\""
+                        isInputEmpty && selectedCategory == FontCategory.HINDI_CALLIGRAPHY ->
+                            "Previewing \"हर शब्द • VEDOGRAPHi\" — type Hindi or English above"
+                        isInputEmpty -> "Previewing \"VEDOGRAPHi\" — type above to transform live"
+                        else -> null
                     },
                     action = {
                         VedographiPillBadge(text = "${filteredItems.size} fonts")
@@ -668,12 +746,12 @@ fun FontsHomeScreen(
                 item(key = "empty_state") {
                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                         when {
-                            selectedCategory == FontCategory.FAVORITES -> EmptyStateCard(
+                            selectedCategory == FontCategory.FAVORITES && searchQuery.isBlank() -> EmptyStateCard(
                                 title = stringResource(R.string.empty_favorites_title),
                                 subtitle = stringResource(R.string.empty_favorites_subtitle),
                                 icon = Icons.Outlined.FavoriteBorder
                             )
-                            selectedCategory == FontCategory.RECENT -> EmptyStateCard(
+                            selectedCategory == FontCategory.RECENT && searchQuery.isBlank() -> EmptyStateCard(
                                 title = stringResource(R.string.empty_recent_title),
                                 subtitle = stringResource(R.string.empty_recent_subtitle),
                                 icon = Icons.Outlined.History
@@ -681,7 +759,16 @@ fun FontsHomeScreen(
                             else -> EmptyStateCard(
                                 title = stringResource(R.string.empty_search_title),
                                 subtitle = stringResource(R.string.empty_search_subtitle),
-                                icon = Icons.Outlined.SearchOff
+                                icon = Icons.Outlined.SearchOff,
+                                actionLabel = if (searchQuery.isNotBlank() || selectedCategory != FontCategory.ALL) {
+                                    "Reset Search & Filters"
+                                } else {
+                                    null
+                                },
+                                onActionClick = {
+                                    onSearchChange("")
+                                    onSelectCategory(FontCategory.ALL)
+                                }
                             )
                         }
                     }
@@ -700,8 +787,8 @@ fun FontsHomeScreen(
             }
         }
 
-        // Scroll-to-Top Floating Button for mobile comfort across 220+ fonts
-        AnimatedVisibility(
+        // Scroll-to-Top Floating Button for mobile comfort across 235+ fonts
+        androidx.compose.animation.AnimatedVisibility(
             visible = showScrollToTop,
             enter = fadeIn() + scaleIn(),
             exit = fadeOut() + scaleOut(),
@@ -726,6 +813,7 @@ fun FontsHomeScreen(
                 )
             }
         }
+        }
     }
 }
 
@@ -735,6 +823,8 @@ private fun TrendingSpotlightCard(
     previewFontFamily: FontFamily,
     onCopy: () -> Unit
 ) {
+    val copyPulse = rememberCopyPulseState()
+
     Surface(
         shape = RoundedCornerShape(VedographiDefaults.CardCornerRadius),
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -745,7 +835,10 @@ private fun TrendingSpotlightCard(
         modifier = Modifier
             .width(214.dp)
             .clip(RoundedCornerShape(VedographiDefaults.CardCornerRadius))
-            .clickable(onClick = onCopy)
+            .clickable {
+                copyPulse.trigger()
+                onCopy()
+            }
     ) {
         Column(
             modifier = Modifier
@@ -780,17 +873,29 @@ private fun TrendingSpotlightCard(
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = item.previewText,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = previewFontFamily,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            val resolvedFontFamily = item.spec.calligraphyPresetId
+                ?.let { HindiCalligraphyPreset.fromId(it).fontFamily }
+                ?: previewFontFamily
+            CopyFeedbackPreviewBox(
+                pulseState = copyPulse,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = item.previewText,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = resolvedFontFamily,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = if (item.isRecentlyCopied) "Copied!" else "Tap to copy",

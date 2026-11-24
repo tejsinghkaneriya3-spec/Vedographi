@@ -8,7 +8,7 @@
     <string name="nav_studio">Studio</string>
     <string name="nav_profile">Profile</string>
     <string name="input_placeholder">Type Your Text Here...</string>
-    <string name="search_fonts_placeholder">Search 220+ fonts or categories…</string>
+    <string name="search_fonts_placeholder">Search fonts by name or style category…</string>
     <string name="action_copy">Copy</string>
     <string name="action_copy_all">Copy All</string>
     <string name="action_copied">Copied!</string>
@@ -33,7 +33,7 @@
     <string name="empty_recent_title">No recently used fonts</string>
     <string name="empty_recent_subtitle">Copy or share any style and it will appear here automatically.</string>
     <string name="empty_search_title">No matching fonts found</string>
-    <string name="empty_search_subtitle">Try searching \"cursive\", \"gothic\", \"serif\", \"fancy\", or switch to All.</string>
+    <string name="empty_search_subtitle">Try searching \"hindi calligraphy\", \"cursive\", \"gothic\", \"serif\", or switch to All.</string>
 
     <!-- Public Release: Guest Mode, Privacy Policy & Account Deletion -->
     <string name="continue_as_guest">Continue as Guest</string>

@@ -81,11 +81,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.auth.authStateFlow
+import com.example.auth.authStateFlowSafe
 import com.example.auth.clearCredentialSession
 import com.example.auth.deleteCurrentFirebaseUser
 import com.example.auth.onGoogleSignInClicked
 import com.example.auth.reauthenticateWithGoogle
+import com.example.auth.safeCurrentFirebaseUser
 import com.example.auth.signOut
 import com.example.data.CloudSyncRepository
 import com.example.data.PreferencesRepository
@@ -93,8 +94,10 @@ import com.example.domain.CachedEntrySource
 import com.example.domain.CachedStyleEntry
 import com.example.domain.FontCatalog
 import com.example.domain.SocialPlatform
+import com.example.ui.BatchCopyVariation
 import com.example.ui.FontPreviewItem
 import com.example.ui.VedographiViewModel
+import com.example.ui.components.BatchCopyAllBottomSheet
 import com.example.ui.components.SocialShareBottomSheet
 import com.example.ui.components.VedographiDefaults
 import com.example.ui.components.VedographiSplashScreen
@@ -111,9 +114,7 @@ import com.example.ui.theme.RoyalViolet
 import com.example.ui.theme.VedographiTheme
 import com.example.util.NetworkMonitor
 import com.example.util.ShareAndClipboardHelper
-import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 
@@ -179,15 +180,16 @@ class MainActivity : ComponentActivity() {
             val localPrefs = remember { PreferencesRepository(applicationContext) }
             val localDarkTheme by localPrefs.isDarkTheme.collectAsStateWithLifecycle(initialValue = true)
             val isGuestModeEnabled by localPrefs.guestModeEnabled.collectAsStateWithLifecycle(initialValue = false)
-            val currentUser by Firebase.auth.authStateFlow()
-                .collectAsStateWithLifecycle(initialValue = Firebase.auth.currentUser)
+            val initialFirebaseUser = remember { safeCurrentFirebaseUser(applicationContext) }
+            val currentUser by remember { authStateFlowSafe(applicationContext) }
+                .collectAsStateWithLifecycle(initialValue = initialFirebaseUser)
             val rootScope = rememberCoroutineScope()
 
             var authLegalOverlay by rememberSaveable { mutableStateOf(AuthLegalOverlay.NONE) }
             var skipAutoSignIn by rememberSaveable { mutableStateOf(false) }
             var authStatusBanner by rememberSaveable { mutableStateOf<String?>(null) }
             var authSessionGeneration by rememberSaveable { mutableIntStateOf(0) }
-            var lastObservedSessionUid by rememberSaveable { mutableStateOf(Firebase.auth.currentUser?.uid) }
+            var lastObservedSessionUid by rememberSaveable { mutableStateOf(initialFirebaseUser?.uid) }
             var pendingPostSignInMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
             var activeDarkTheme by remember { mutableStateOf(localDarkTheme) }
@@ -381,6 +383,7 @@ private fun VedographiAppShell(
     val isInputEmpty by viewModel.isInputEmpty.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val isSearchExpandedAcrossAll by viewModel.isSearchExpandedAcrossAll.collectAsStateWithLifecycle()
     val selectedCalligraphyPreset by viewModel.selectedCalligraphyPreset.collectAsStateWithLifecycle()
     val hasHindiInInput by viewModel.hasHindiInInput.collectAsStateWithLifecycle()
     val trendingItems by viewModel.trendingFontItems.collectAsStateWithLifecycle()
@@ -390,6 +393,7 @@ private fun VedographiAppShell(
     val savedCreations by viewModel.savedCreations.collectAsStateWithLifecycle()
     val copiedFeedbackId by viewModel.copiedFeedbackId.collectAsStateWithLifecycle()
     val shareSheetPayload by viewModel.shareSheetPayload.collectAsStateWithLifecycle()
+    val batchCopySheet by viewModel.batchCopySheet.collectAsStateWithLifecycle()
 
     LaunchedEffect(cloudSyncError) {
         val err = cloudSyncError
@@ -687,6 +691,7 @@ private fun VedographiAppShell(
                                     isInputEmpty = isInputEmpty,
                                     searchQuery = searchQuery,
                                     selectedCategory = selectedCategory,
+                                    isSearchExpandedAcrossAll = isSearchExpandedAcrossAll,
                                     hasHindiInInput = hasHindiInInput,
                                     trendingItems = trendingItems,
                                     filteredItems = filteredItems,
@@ -718,13 +723,7 @@ private fun VedographiAppShell(
                                         }
                                     },
                                     onCopyAllClick = {
-                                        val allText = viewModel.buildCopyAllText()
-                                        if (allText.isNotEmpty()) {
-                                            copyPlain(
-                                                text = allText,
-                                                label = "Copied all ${filteredItems.size} styles!"
-                                            )
-                                        }
+                                        viewModel.openBatchCopySheetForFonts()
                                     },
                                     onSearchChange = viewModel::updateSearchQuery,
                                     onSelectCategory = viewModel::selectCategory,
@@ -825,6 +824,20 @@ private fun VedographiAppShell(
                                             source = CachedEntrySource.USERNAME
                                         )
                                         viewModel.openShareSheet(handle)
+                                    },
+                                    onCopyAllUsernames = { handles ->
+                                        viewModel.openBatchCopySheet(
+                                            title = "Batch Copy Usernames",
+                                            sourceText = usernameInput.ifBlank { "Vedo" },
+                                            variations = handles.mapIndexed { idx, handle ->
+                                                BatchCopyVariation(
+                                                    id = "uname_${idx}_${handle.hashCode()}",
+                                                    styleName = "${selectedUsernameVibe.label} #${idx + 1}",
+                                                    styledText = handle
+                                                )
+                                            },
+                                            includeLabelsDefault = false
+                                        )
                                     }
                                 )
                             }
@@ -960,6 +973,20 @@ private fun VedographiAppShell(
                                     onClearCachedStyles = {
                                         viewModel.clearCachedStyles()
                                         showMessage("Cleared offline cache")
+                                    },
+                                    onCopyAllTemplates = { pairs ->
+                                        viewModel.openBatchCopySheet(
+                                            title = "Batch Copy Templates",
+                                            sourceText = decoratorInput.ifBlank { "VEDOGRAPHi" },
+                                            variations = pairs.map { (tpl, rendered) ->
+                                                BatchCopyVariation(
+                                                    id = tpl.id,
+                                                    styleName = tpl.name,
+                                                    styledText = rendered
+                                                )
+                                            },
+                                            includeLabelsDefault = false
+                                        )
                                     }
                                 )
                             }
@@ -1111,6 +1138,25 @@ private fun VedographiAppShell(
                 val resultMsg = ShareAndClipboardHelper.shareToPlatform(context, payload, platform)
                 viewModel.dismissShareSheet()
                 showMessage(resultMsg)
+            }
+        )
+    }
+
+    val batchState = batchCopySheet
+    if (batchState != null) {
+        BatchCopyAllBottomSheet(
+            state = batchState,
+            onDismiss = viewModel::dismissBatchCopySheet,
+            onCopyBatch = { formattedText, selectedCount ->
+                copyPlain(
+                    text = formattedText,
+                    label = "Copied $selectedCount variation(s) to clipboard!"
+                )
+                viewModel.dismissBatchCopySheet()
+            },
+            onShareBatch = { formattedText, _ ->
+                viewModel.dismissBatchCopySheet()
+                viewModel.openShareSheet(formattedText)
             }
         )
     }

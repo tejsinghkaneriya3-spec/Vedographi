@@ -13,12 +13,12 @@ import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
 import androidx.credentials.exceptions.GetCredentialUnsupportedException
 import androidx.credentials.exceptions.NoCredentialException
-import com.example.R
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
@@ -34,6 +34,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -48,6 +49,34 @@ tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+fun isFirebaseConfigured(context: Context): Boolean {
+    val appContext = context.applicationContext
+    if (FirebaseApp.getApps(appContext).isNotEmpty()) return true
+    return runCatching { FirebaseApp.initializeApp(appContext) != null }.getOrDefault(false)
+}
+
+fun safeCurrentFirebaseUser(context: Context): FirebaseUser? {
+    if (!isFirebaseConfigured(context)) return null
+    return runCatching { Firebase.auth.currentUser }.getOrNull()
+}
+
+fun authStateFlowSafe(context: Context): Flow<FirebaseUser?> {
+    if (!isFirebaseConfigured(context)) return flowOf(null)
+    return runCatching { Firebase.auth.authStateFlow() }.getOrElse { flowOf(null) }
+}
+
+private fun resolveDefaultWebClientId(context: Context): String? {
+    val resId = context.resources.getIdentifier(
+        "default_web_client_id",
+        "string",
+        context.packageName
+    )
+    if (resId == 0) return null
+    return runCatching { context.getString(resId).trim() }
+        .getOrNull()
+        ?.takeIf { it.isNotEmpty() }
 }
 
 fun FirebaseAuth.authStateFlow(): Flow<FirebaseUser?> = callbackFlow {
@@ -65,17 +94,16 @@ fun attemptAutoSignIn(
     onUnauthenticated: () -> Unit,
     scope: CoroutineScope
 ): Job? {
+    if (!isFirebaseConfigured(context)) {
+        onUnauthenticated()
+        return null
+    }
     if (Firebase.auth.currentUser != null) {
         onAuthSuccess()
         return null
     }
-    val clientId = try {
-        context.getString(R.string.default_web_client_id).trim()
-    } catch (_: Exception) {
-        onUnauthenticated()
-        return null
-    }
-    if (clientId.isEmpty()) {
+    val clientId = resolveDefaultWebClientId(context)
+    if (clientId == null) {
         onUnauthenticated()
         return null
     }
@@ -135,14 +163,15 @@ fun onGoogleSignInClicked(
     scope: CoroutineScope,
     onAuthCancelled: () -> Unit = {}
 ) {
-    val clientId = try {
-        context.getString(R.string.default_web_client_id).trim()
-    } catch (_: Exception) {
-        onAuthError("Google Sign-In configuration missing: default_web_client_id not found")
+    if (!isFirebaseConfigured(context)) {
+        onAuthError("Firebase Sign-In is not configured in this build. Please continue as Guest.")
         return
     }
-    if (clientId.isEmpty()) {
-        onAuthError("Google Sign-In configuration missing: empty web client ID")
+    val clientId = resolveDefaultWebClientId(context)
+    if (clientId == null) {
+        onAuthError(
+            "Google Sign-In configuration missing: google-services.json / default_web_client_id not found. You can continue as Guest."
+        )
         return
     }
     val activity = context.findActivity()
@@ -256,7 +285,7 @@ fun signOut(
     scope.launch {
         withContext(NonCancellable) {
             clearCredentialSession(credentialManager)
-            Firebase.auth.signOut()
+            runCatching { Firebase.auth.signOut() }
             withContext(Dispatchers.Main.immediate) {
                 onSignOutComplete()
             }
@@ -275,7 +304,8 @@ suspend fun clearCredentialSession(credentialManager: CredentialManager) {
 }
 
 suspend fun deleteCurrentFirebaseUser(): DeleteAuthAccountResult {
-    val user = Firebase.auth.currentUser ?: return DeleteAuthAccountResult.Success
+    val user = runCatching { Firebase.auth.currentUser }.getOrNull()
+        ?: return DeleteAuthAccountResult.Success
     return try {
         user.delete().await()
         DeleteAuthAccountResult.Success
@@ -293,16 +323,13 @@ suspend fun reauthenticateWithGoogle(
     context: Context,
     credentialManager: CredentialManager
 ): Result<Unit> {
+    if (!isFirebaseConfigured(context)) {
+        return Result.failure(IllegalStateException("Firebase Sign-In is not configured in this build"))
+    }
     val user = Firebase.auth.currentUser
         ?: return Result.failure(IllegalStateException("No active signed-in user"))
-    val clientId = try {
-        context.getString(R.string.default_web_client_id).trim()
-    } catch (_: Exception) {
-        return Result.failure(IllegalStateException("Google Sign-In configuration missing"))
-    }
-    if (clientId.isEmpty()) {
-        return Result.failure(IllegalStateException("Google Sign-In configuration missing"))
-    }
+    val clientId = resolveDefaultWebClientId(context)
+        ?: return Result.failure(IllegalStateException("Google Sign-In configuration missing"))
     val activity = context.findActivity()
         ?: return Result.failure(IllegalStateException("Unable to launch Google Sign-In from current context"))
 

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
@@ -58,10 +59,13 @@ import com.example.domain.SavedCreation
 import com.example.domain.StudioGenerators
 import com.example.domain.TextStudioCatalog
 import com.example.ui.FontPreviewItem
+import com.example.ui.components.CopyFeedbackPreviewBox
 import com.example.ui.components.VedographiContentCard
 import com.example.ui.components.VedographiDefaults
 import com.example.ui.components.VedographiHeroCard
 import com.example.ui.components.VedographiPillBadge
+import com.example.ui.components.rememberCopyPulseState
+import com.example.ui.theme.HindiCalligraphyPreset
 
 private val StudioTabLabels = listOf(
     "50 Templates",
@@ -145,6 +149,7 @@ fun MyTextStudioScreen(
     onRestoreCachedEntry: (CachedStyleEntry) -> Unit = {},
     onRemoveCachedStyle: (String) -> Unit = {},
     onClearCachedStyles: () -> Unit = {},
+    onCopyAllTemplates: ((List<Pair<DecorationTemplate, String>>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -218,7 +223,8 @@ fun MyTextStudioScreen(
                 },
                 onShareTemplate = { tpl, text ->
                     onShareTemplate?.invoke(tpl, text) ?: onShareText(text)
-                }
+                },
+                onCopyAllTemplates = onCopyAllTemplates
             )
             1 -> CustomDesignerTab(
                 decoratorInput = decoratorInput,
@@ -424,7 +430,8 @@ private fun FiftyTemplatesTab(
     onSelectTagFilter: (String) -> Unit,
     onApplyTemplate: (DecorationTemplate) -> Unit,
     onCopyTemplate: (DecorationTemplate, String) -> Unit,
-    onShareTemplate: (DecorationTemplate, String) -> Unit
+    onShareTemplate: (DecorationTemplate, String) -> Unit,
+    onCopyAllTemplates: ((List<Pair<DecorationTemplate, String>>) -> Unit)? = null
 ) {
     val allTags = remember {
         listOf("All") + TextStudioCatalog.decorationTemplates.map { it.tag }.distinct()
@@ -483,17 +490,57 @@ private fun FiftyTemplatesTab(
         }
 
         item(key = "tpl_count") {
-            Text(
-                text = "${templates.size} decoration templates • Tap Customize to edit borders & symbols",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${templates.size} decoration templates • Tap Customize to edit borders",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                if (onCopyAllTemplates != null && templates.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            onCopyAllTemplates(templates.map { it to it.render(decoratorInput) })
+                        },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .height(40.dp)
+                            .testTag("copy_all_templates_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CopyAll,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Copy All",
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+            }
         }
 
         items(templates, key = { it.id }) { template ->
             val rendered = template.render(decoratorInput)
+            val copyPulse = rememberCopyPulseState()
+            val triggerCopy = {
+                copyPulse.trigger()
+                onCopyTemplate(template, rendered)
+            }
             VedographiContentCard(
-                onClick = { onCopyTemplate(template, rendered) },
+                onClick = triggerCopy,
                 contentPadding = PaddingValues(16.dp),
                 modifier = Modifier.testTag("decoration_tpl_${template.id}")
             ) {
@@ -512,15 +559,24 @@ private fun FiftyTemplatesTab(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                SelectionContainer {
-                    Text(
-                        text = rendered,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 17.sp,
-                            lineHeight = 25.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                CopyFeedbackPreviewBox(
+                    pulseState = copyPulse,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = rendered,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 17.sp,
+                                lineHeight = 25.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -530,7 +586,7 @@ private fun FiftyTemplatesTab(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { onCopyTemplate(template, rendered) },
+                        onClick = triggerCopy,
                         shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                         colors = VedographiDefaults.primaryButtonColors(),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
@@ -599,7 +655,8 @@ private fun CustomDesignerTab(
     val decoratorFonts = remember {
         listOf(
             "bold_script", "sans_bold", "serif_bold_italic", "fraktur_gothic",
-            "double_struck", "small_caps", "monospace", "fullwidth", "bubble_dark", "greek_aesthetic"
+            "double_struck", "small_caps", "monospace", "fullwidth", "bubble_dark", "greek_aesthetic",
+            "hindi_kalash_royal", "hindi_morpankh_script", "hindi_shlok_gold", "hindi_shayari_quote"
         ).mapNotNull { FontCatalog.findById(it) }
     }
 
@@ -609,6 +666,7 @@ private fun CustomDesignerTab(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item(key = "custom_preview") {
+            val copyPulse = rememberCopyPulseState()
             VedographiHeroCard(contentPadding = PaddingValues(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -645,36 +703,42 @@ private fun CustomDesignerTab(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (editFinalDirectly) {
-                    OutlinedTextField(
-                        value = decoratedOutput,
-                        onValueChange = onCustomFinalOverrideChange,
-                        label = { Text("Customize final text before copying") },
-                        minLines = 3,
-                        maxLines = 6,
-                        shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
-                        colors = VedographiDefaults.textFieldColors(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("custom_final_editor")
-                    )
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        SelectionContainer {
-                            Text(
-                                text = decoratedOutput,
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontSize = 18.sp,
-                                    lineHeight = 27.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(14.dp)
-                            )
+                CopyFeedbackPreviewBox(
+                    pulseState = copyPulse,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (editFinalDirectly) {
+                        OutlinedTextField(
+                            value = decoratedOutput,
+                            onValueChange = onCustomFinalOverrideChange,
+                            label = { Text("Customize final text before copying") },
+                            minLines = 3,
+                            maxLines = 6,
+                            shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                            colors = VedographiDefaults.textFieldColors(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("custom_final_editor")
+                        )
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            SelectionContainer {
+                                Text(
+                                    text = decoratedOutput,
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontSize = 18.sp,
+                                        lineHeight = 27.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(14.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -686,7 +750,10 @@ private fun CustomDesignerTab(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
-                        onClick = { onCopyText(decoratedOutput) },
+                        onClick = {
+                            copyPulse.trigger()
+                            onCopyText(decoratedOutput)
+                        },
                         shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                         colors = VedographiDefaults.primaryButtonColors(),
                         modifier = Modifier
@@ -767,7 +834,17 @@ private fun CustomDesignerTab(
                         FilterChip(
                             selected = selected,
                             onClick = { onSelectDecoratorFont(spec.id) },
-                            label = { Text(spec.transform("Abc"), style = MaterialTheme.typography.labelLarge) },
+                            label = {
+                                val chipFont = spec.calligraphyPresetId
+                                    ?.let { HindiCalligraphyPreset.fromId(it).fontFamily }
+                                    ?: MaterialTheme.typography.labelLarge.fontFamily
+                                val sample = if (spec.calligraphyPresetId != null) "कला" else "Abc"
+                                Text(
+                                    spec.transform(sample),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = chipFont),
+                                    maxLines = 1
+                                )
+                            },
                             colors = VedographiDefaults.filterChipColors(),
                             border = VedographiDefaults.filterChipBorder(selected),
                             modifier = Modifier.height(40.dp)

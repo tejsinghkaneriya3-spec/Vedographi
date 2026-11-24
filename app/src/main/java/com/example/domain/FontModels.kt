@@ -5,6 +5,7 @@ enum class FontCategory(val label: String) {
     TRENDING("Trending"),
     FAVORITES("Favorites"),
     RECENT("Recent"),
+    HINDI_CALLIGRAPHY("Hindi Calligraphy"),
     STYLISH("Stylish"),
     BOLD("Bold"),
     CURSIVE("Cursive"),
@@ -23,6 +24,7 @@ data class FontStyleSpec(
     val category: FontCategory,
     val isTrending: Boolean = false,
     val badge: String? = null,
+    val calligraphyPresetId: String? = null,
     val transform: (String) -> String
 )
 

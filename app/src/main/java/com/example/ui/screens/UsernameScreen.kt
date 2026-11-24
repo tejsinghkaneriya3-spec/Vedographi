@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -25,6 +27,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -36,8 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.domain.UsernameVibe
+import com.example.ui.components.CopyFeedbackPreviewBox
 import com.example.ui.components.VedographiContentCard
 import com.example.ui.components.VedographiDefaults
+import com.example.ui.components.rememberCopyPulseState
 
 @Composable
 fun UsernameScreen(
@@ -50,6 +55,7 @@ fun UsernameScreen(
     onCopyUsername: (String) -> Unit,
     onSaveUsername: (String) -> Unit,
     onShareUsername: (String) -> Unit,
+    onCopyAllUsernames: ((List<String>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -132,9 +138,53 @@ fun UsernameScreen(
             }
         }
 
+        if (onCopyAllUsernames != null && generatedUsernames.isNotEmpty()) {
+            item(key = "uname_batch_bar") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${generatedUsernames.size} generated handles",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        onClick = { onCopyAllUsernames(generatedUsernames) },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.outlinedButtonColors(),
+                        border = VedographiDefaults.outlinedButtonBorder(),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .height(40.dp)
+                            .testTag("copy_all_usernames_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CopyAll,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Copy All",
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+            }
+        }
+
         items(generatedUsernames, key = { it }) { handle ->
+            val copyPulse = rememberCopyPulseState()
+            val triggerCopy = {
+                copyPulse.trigger()
+                onCopyUsername(handle)
+            }
             VedographiContentCard(
-                onClick = { onCopyUsername(handle) },
+                onClick = triggerCopy,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Row(
@@ -142,18 +192,26 @@ fun UsernameScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = handle,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
+                    CopyFeedbackPreviewBox(
+                        pulseState = copyPulse,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
-                    )
+                    ) {
+                        Text(
+                            text = handle,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                        )
+                    }
                     Row {
                         IconButton(
-                            onClick = { onCopyUsername(handle) },
+                            onClick = triggerCopy,
                             modifier = Modifier.minimumInteractiveComponentSize()
                         ) {
                             Icon(

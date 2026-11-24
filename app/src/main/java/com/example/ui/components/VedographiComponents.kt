@@ -2,15 +2,18 @@ package com.example.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,10 +22,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +39,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -43,10 +51,14 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ChipColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -58,19 +70,29 @@ import androidx.compose.material3.SegmentedButtonColors
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SelectableChipColors
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -86,11 +108,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.domain.SocialPlatform
+import com.example.ui.BatchCopySheetState
 import com.example.ui.FontPreviewItem
 import com.example.ui.theme.CrispWhite
 import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.FacebookBlue
+import com.example.ui.theme.HindiCalligraphyPreset
 import com.example.ui.theme.InstagramMagenta
 import com.example.ui.theme.KalamFontFamily
 import com.example.ui.theme.NeonOrchid
@@ -99,6 +123,98 @@ import com.example.ui.theme.RoseHeart
 import com.example.ui.theme.RoyalViolet
 import com.example.ui.theme.TelegramBlue
 import com.example.ui.theme.WhatsAppGreen
+import kotlinx.coroutines.launch
+import kotlin.math.hypot
+
+@Stable
+class CopyPulseState {
+    var pulseTick by mutableIntStateOf(0)
+        private set
+
+    fun trigger() {
+        pulseTick += 1
+    }
+}
+
+@Composable
+fun rememberCopyPulseState(): CopyPulseState = remember { CopyPulseState() }
+
+@Composable
+fun CopyFeedbackPreviewBox(
+    pulseState: CopyPulseState,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(16.dp),
+    highlightColor: Color = EmeraldSuccess,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val scale = remember { Animatable(1f) }
+    val rippleProgress = remember { Animatable(0f) }
+    val rippleAlpha = remember { Animatable(0f) }
+
+    LaunchedEffect(pulseState.pulseTick) {
+        if (pulseState.pulseTick > 0) {
+            launch {
+                scale.snapTo(1f)
+                scale.animateTo(
+                    targetValue = 1.032f,
+                    animationSpec = tween(durationMillis = 85)
+                )
+                scale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
+            }
+            launch {
+                rippleProgress.snapTo(0f)
+                rippleAlpha.snapTo(0.28f)
+                launch {
+                    rippleProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 360)
+                    )
+                }
+                rippleAlpha.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 380)
+                )
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            }
+            .clip(shape)
+            .drawWithContent {
+                drawContent()
+                val alpha = rippleAlpha.value
+                if (alpha > 0.005f) {
+                    val maxRadius = hypot(size.width.toDouble(), size.height.toDouble()).toFloat() * 0.68f
+                    val currentRadius = (maxRadius * rippleProgress.value).coerceAtLeast(1f)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                highlightColor.copy(alpha = alpha),
+                                highlightColor.copy(alpha = alpha * 0.35f),
+                                Color.Transparent
+                            ),
+                            center = center,
+                            radius = currentRadius
+                        ),
+                        radius = currentRadius,
+                        center = center
+                    )
+                }
+            },
+        content = content
+    )
+}
 
 object VedographiDefaults {
     val ButtonCornerRadius = 14.dp
@@ -503,8 +619,11 @@ fun FontPreviewCard(
         label = "card_border"
     )
 
+    val copyPulse = rememberCopyPulseState()
+
     val triggerCopy = {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        copyPulse.trigger()
         onCopy()
     }
 
@@ -564,15 +683,29 @@ fun FontPreviewCard(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        Text(
-            text = item.previewText,
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontFamily = previewFontFamily ?: MaterialTheme.typography.titleLarge.fontFamily,
-                fontSize = 21.sp,
-                lineHeight = 30.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        val resolvedFontFamily = item.spec.calligraphyPresetId
+            ?.let { HindiCalligraphyPreset.fromId(it).fontFamily }
+            ?: previewFontFamily
+            ?: MaterialTheme.typography.titleLarge.fontFamily
+
+        CopyFeedbackPreviewBox(
+            pulseState = copyPulse,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = item.previewText,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = resolvedFontFamily,
+                    fontSize = 21.sp,
+                    lineHeight = 30.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(14.dp))
 
@@ -673,20 +806,28 @@ fun SocialShareBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Surface(
+            val copyPulse = rememberCopyPulseState()
+
+            CopyFeedbackPreviewBox(
+                pulseState = copyPulse,
                 shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 5,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(14.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 5,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -732,7 +873,10 @@ fun SocialShareBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
-                    onClick = onCopy,
+                    onClick = {
+                        copyPulse.trigger()
+                        onCopy()
+                    },
                     shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                     colors = VedographiDefaults.outlinedButtonColors(),
                     border = VedographiDefaults.outlinedButtonBorder(),
@@ -808,7 +952,9 @@ fun EmptyStateCard(
     title: String,
     subtitle: String,
     icon: ImageVector = Icons.Outlined.AutoAwesome,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onActionClick: (() -> Unit)? = null
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -850,6 +996,369 @@ fun EmptyStateCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+            if (!actionLabel.isNullOrBlank() && onActionClick != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onActionClick,
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                    colors = VedographiDefaults.outlinedButtonColors(),
+                    border = VedographiDefaults.outlinedButtonBorder(),
+                    modifier = Modifier.height(VedographiDefaults.ButtonHeight)
+                ) {
+                    Text(
+                        text = actionLabel,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BatchCopyAllBottomSheet(
+    state: BatchCopySheetState,
+    onDismiss: () -> Unit,
+    onCopyBatch: (formattedText: String, selectedCount: Int) -> Unit,
+    onShareBatch: (formattedText: String, selectedCount: Int) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptic = LocalHapticFeedback.current
+    val copyPulse = rememberCopyPulseState()
+
+    var selectedIds by remember(state) {
+        mutableStateOf(state.variations.map { it.id }.toSet())
+    }
+    var includeStyleLabels by remember(state) {
+        mutableStateOf(state.includeLabelsDefault)
+    }
+
+    val favoriteCount = remember(state.variations) {
+        state.variations.count { it.isFavorite }
+    }
+
+    val selectedVariations = remember(state.variations, selectedIds) {
+        state.variations.filter { it.id in selectedIds }
+    }
+
+    val formattedBatchText = remember(selectedVariations, includeStyleLabels) {
+        selectedVariations.joinToString("\n") { item ->
+            if (includeStyleLabels) "${item.styleName}: ${item.styledText}" else item.styledText
+        }
+    }
+
+    val allSelected = selectedIds.size == state.variations.size && state.variations.isNotEmpty()
+    val top5Ids = remember(state.variations) { state.variations.take(5).map { it.id }.toSet() }
+    val top10Ids = remember(state.variations) { state.variations.take(10).map { it.id }.toSet() }
+    val favIds = remember(state.variations) { state.variations.filter { it.isFavorite }.map { it.id }.toSet() }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = state.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (state.sourceText.isNotBlank()) {
+                        Text(
+                            text = "Input: ${state.sourceText}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                VedographiPillBadge(
+                    text = "${selectedVariations.size} / ${state.variations.size} selected"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Quick batch selection presets
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item(key = "preset_all") {
+                    FilterChip(
+                        selected = allSelected,
+                        onClick = { selectedIds = state.variations.map { it.id }.toSet() },
+                        label = { Text("All (${state.variations.size})", style = MaterialTheme.typography.labelMedium) },
+                        colors = VedographiDefaults.filterChipColors(),
+                        border = VedographiDefaults.filterChipBorder(allSelected),
+                        modifier = Modifier
+                            .height(38.dp)
+                            .testTag("batch_preset_all")
+                    )
+                }
+                if (state.variations.size > 5) {
+                    val isTop5 = selectedIds == top5Ids
+                    item(key = "preset_top5") {
+                        FilterChip(
+                            selected = isTop5,
+                            onClick = { selectedIds = top5Ids },
+                            label = { Text("Top 5", style = MaterialTheme.typography.labelMedium) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(isTop5),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("batch_preset_top5")
+                        )
+                    }
+                }
+                if (state.variations.size > 10) {
+                    val isTop10 = selectedIds == top10Ids
+                    item(key = "preset_top10") {
+                        FilterChip(
+                            selected = isTop10,
+                            onClick = { selectedIds = top10Ids },
+                            label = { Text("Top 10", style = MaterialTheme.typography.labelMedium) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(isTop10),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("batch_preset_top10")
+                        )
+                    }
+                }
+                if (favoriteCount > 0) {
+                    val isFavs = selectedIds == favIds
+                    item(key = "preset_favs") {
+                        FilterChip(
+                            selected = isFavs,
+                            onClick = { selectedIds = favIds },
+                            label = { Text("Favorites ($favoriteCount)", style = MaterialTheme.typography.labelMedium) },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(isFavs),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("batch_preset_favorites")
+                        )
+                    }
+                }
+                item(key = "preset_clear") {
+                    val isEmpty = selectedIds.isEmpty()
+                    FilterChip(
+                        selected = isEmpty,
+                        onClick = { selectedIds = emptySet() },
+                        label = { Text("Clear", style = MaterialTheme.typography.labelMedium) },
+                        colors = VedographiDefaults.filterChipColors(),
+                        border = VedographiDefaults.filterChipBorder(isEmpty),
+                        modifier = Modifier
+                            .height(38.dp)
+                            .testTag("batch_preset_clear")
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Format toggle: Style Name + Text vs Clean Lines
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Include style labels",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (includeStyleLabels) {
+                            "Copies as \"Style Name: text\""
+                        } else {
+                            "Copies pure styled variations line by line"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = includeStyleLabels,
+                    onCheckedChange = { includeStyleLabels = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = CrispWhite,
+                        checkedTrackColor = RoyalViolet
+                    ),
+                    modifier = Modifier.testTag("batch_include_labels_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Combined Live Clipboard Preview
+            CopyFeedbackPreviewBox(
+                pulseState = copyPulse,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = formattedBatchText.ifBlank { "Select one or more variations below to copy." },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (formattedBatchText.isBlank()) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Checkable variations list
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 120.dp, max = 240.dp)
+            ) {
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(state.variations, key = { it.id }) { variation ->
+                        val checked = variation.id in selectedIds
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedIds = if (checked) {
+                                        selectedIds - variation.id
+                                    } else {
+                                        selectedIds + variation.id
+                                    }
+                                }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .minimumInteractiveComponentSize()
+                                .testTag("batch_item_${variation.id}")
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { isChecked ->
+                                    selectedIds = if (isChecked) {
+                                        selectedIds + variation.id
+                                    } else {
+                                        selectedIds - variation.id
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = RoyalViolet,
+                                    checkmarkColor = CrispWhite
+                                )
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = variation.styleName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = variation.styledText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        if (formattedBatchText.isNotEmpty()) {
+                            onShareBatch(formattedBatchText, selectedVariations.size)
+                        }
+                    },
+                    enabled = selectedVariations.isNotEmpty(),
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                    colors = VedographiDefaults.outlinedButtonColors(),
+                    border = VedographiDefaults.outlinedButtonBorder(enabled = selectedVariations.isNotEmpty()),
+                    modifier = Modifier
+                        .height(VedographiDefaults.ButtonHeight)
+                        .testTag("batch_share_btn")
+                ) {
+                    Icon(Icons.Filled.Share, contentDescription = "Share selected", modifier = Modifier.size(18.dp))
+                }
+
+                Button(
+                    onClick = {
+                        if (formattedBatchText.isNotEmpty()) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            copyPulse.trigger()
+                            onCopyBatch(formattedBatchText, selectedVariations.size)
+                        }
+                    },
+                    enabled = selectedVariations.isNotEmpty(),
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                    colors = VedographiDefaults.primaryButtonColors(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(VedographiDefaults.ButtonHeight)
+                        .testTag("batch_copy_confirm_btn")
+                ) {
+                    Icon(Icons.Filled.CopyAll, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when {
+                            selectedVariations.isEmpty() -> "Select Variations"
+                            allSelected -> "Copy All (${selectedVariations.size})"
+                            else -> "Copy ${selectedVariations.size} Selected"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
         }
     }
 }

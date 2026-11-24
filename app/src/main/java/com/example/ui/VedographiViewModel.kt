@@ -61,6 +61,20 @@ data class FontPreviewItem(
     val isRecentlyCopied: Boolean
 )
 
+data class BatchCopyVariation(
+    val id: String,
+    val styleName: String,
+    val styledText: String,
+    val isFavorite: Boolean = false
+)
+
+data class BatchCopySheetState(
+    val title: String,
+    val sourceText: String,
+    val variations: List<BatchCopyVariation>,
+    val includeLabelsDefault: Boolean = true
+)
+
 class VedographiViewModel(
     private val repo: PreferencesRepository,
     private val cloudRepo: CloudSyncGateway? = null,
@@ -450,6 +464,9 @@ class VedographiViewModel(
     private val _shareSheetPayload = MutableStateFlow<String?>(null)
     val shareSheetPayload: StateFlow<String?> = _shareSheetPayload.asStateFlow()
 
+    private val _batchCopySheet = MutableStateFlow<BatchCopySheetState?>(null)
+    val batchCopySheet: StateFlow<BatchCopySheetState?> = _batchCopySheet.asStateFlow()
+
     val hasHindiInInput: StateFlow<Boolean> = _inputText
         .map { UnicodeFontEngine.containsHindi(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
@@ -463,10 +480,14 @@ class VedographiViewModel(
         favoriteFontIds,
         _copiedFeedbackId
     ) { rawText, favs, copiedId ->
-        val effective = rawText.ifEmpty { "VEDOGRAPHi" }
         FontCatalog.allStyles
             .filter { it.isTrending }
             .map { spec ->
+                val effective = if (rawText.isEmpty() && spec.category == FontCategory.HINDI_CALLIGRAPHY) {
+                    "हर शब्द • VEDOGRAPHi"
+                } else {
+                    rawText.ifEmpty { "VEDOGRAPHi" }
+                }
                 FontPreviewItem(
                     spec = spec,
                     previewText = spec.transform(effective),
@@ -475,6 +496,48 @@ class VedographiViewModel(
                 )
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+
+    private fun matchesFontQuery(spec: com.example.domain.FontStyleSpec, query: String): Boolean {
+        val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return true
+        val searchableFields = buildString {
+            append(spec.name.lowercase())
+            append(' ')
+            append(spec.category.label.lowercase())
+            append(' ')
+            append(spec.id.lowercase().replace('_', ' '))
+            spec.badge?.let {
+                append(' ')
+                append(it.lowercase())
+            }
+            spec.calligraphyPresetId?.let {
+                append(' ')
+                append(it.lowercase().replace('_', ' '))
+            }
+        }
+        return tokens.all { token -> searchableFields.contains(token) }
+    }
+
+    val isSearchExpandedAcrossAll: StateFlow<Boolean> = combine(
+        _searchQuery,
+        _selectedCategory
+    ) { rawQuery, category ->
+        val query = rawQuery.trim().lowercase()
+        if (query.isEmpty() ||
+            category == FontCategory.ALL ||
+            category == FontCategory.FAVORITES ||
+            category == FontCategory.RECENT
+        ) {
+            false
+        } else {
+            val categoryBase = when (category) {
+                FontCategory.TRENDING -> FontCatalog.allStyles.filter { it.isTrending }
+                else -> FontCatalog.allStyles.filter { it.category == category }
+            }
+            categoryBase.none { matchesFontQuery(it, query) } &&
+                FontCatalog.allStyles.any { matchesFontQuery(it, query) }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
 
     val filteredFontItems: StateFlow<List<FontPreviewItem>> = combine(
         _inputText,
@@ -493,8 +556,6 @@ class VedographiViewModel(
         val recents = args[4] as List<String>
         val copiedId = args[5] as String?
 
-        val effective = rawText.ifEmpty { "VEDOGRAPHi" }
-
         val baseList = when (category) {
             FontCategory.ALL -> FontCatalog.allStyles
             FontCategory.TRENDING -> FontCatalog.allStyles.filter { it.isTrending }
@@ -506,16 +567,25 @@ class VedographiViewModel(
         val searched = if (query.isEmpty()) {
             baseList
         } else {
-            val normalizedIdQuery = query.replace(" ", "_")
-            baseList.filter { spec ->
-                spec.name.lowercase().contains(query) ||
-                    spec.category.label.lowercase().contains(query) ||
-                    spec.id.lowercase().contains(normalizedIdQuery) ||
-                    (spec.badge?.lowercase()?.contains(query) == true)
+            val directMatches = baseList.filter { matchesFontQuery(it, query) }
+            if (directMatches.isNotEmpty() ||
+                category == FontCategory.ALL ||
+                category == FontCategory.FAVORITES ||
+                category == FontCategory.RECENT
+            ) {
+                directMatches
+            } else {
+                // Allow searching by another category/style name without getting stuck on an active chip
+                FontCatalog.allStyles.filter { matchesFontQuery(it, query) }
             }
         }
 
         searched.map { spec ->
+            val effective = if (rawText.isEmpty() && spec.category == FontCategory.HINDI_CALLIGRAPHY) {
+                "हर शब्द • VEDOGRAPHi"
+            } else {
+                rawText.ifEmpty { "VEDOGRAPHi" }
+            }
             FontPreviewItem(
                 spec = spec,
                 previewText = spec.transform(effective),
@@ -727,9 +797,80 @@ class VedographiViewModel(
     }
 
     fun buildCopyAllText(): String {
+        return buildCopyAllText(selectedIds = null, includeStyleNames = true)
+    }
+
+    fun buildCopyAllText(
+        selectedIds: Set<String>?,
+        includeStyleNames: Boolean
+    ): String {
+        val variations = filteredFontItems.value.map {
+            BatchCopyVariation(
+                id = it.spec.id,
+                styleName = it.spec.name,
+                styledText = it.previewText,
+                isFavorite = it.isFavorite
+            )
+        }
+        return formatBatchCopyText(
+            variations = variations,
+            selectedIds = selectedIds,
+            includeStyleNames = includeStyleNames
+        )
+    }
+
+    fun formatBatchCopyText(
+        variations: List<BatchCopyVariation>,
+        selectedIds: Set<String>?,
+        includeStyleNames: Boolean
+    ): String {
+        val target = if (selectedIds == null) {
+            variations
+        } else {
+            variations.filter { it.id in selectedIds }
+        }
+        if (target.isEmpty()) return ""
+        return target.joinToString("\n") { item ->
+            if (includeStyleNames) "${item.styleName}: ${item.styledText}" else item.styledText
+        }
+    }
+
+    fun openBatchCopySheetForFonts() {
         val items = filteredFontItems.value
-        if (items.isEmpty()) return ""
-        return items.joinToString("\n") { "${it.spec.name}: ${it.previewText}" }
+        if (items.isEmpty()) return
+        val source = _inputText.value.ifBlank { "VEDOGRAPHi" }
+        _batchCopySheet.value = BatchCopySheetState(
+            title = "Batch Copy Font Variations",
+            sourceText = source,
+            variations = items.map {
+                BatchCopyVariation(
+                    id = it.spec.id,
+                    styleName = it.spec.name,
+                    styledText = it.previewText,
+                    isFavorite = it.isFavorite
+                )
+            },
+            includeLabelsDefault = true
+        )
+    }
+
+    fun openBatchCopySheet(
+        title: String,
+        sourceText: String,
+        variations: List<BatchCopyVariation>,
+        includeLabelsDefault: Boolean = true
+    ) {
+        if (variations.isEmpty()) return
+        _batchCopySheet.value = BatchCopySheetState(
+            title = title,
+            sourceText = sourceText,
+            variations = variations,
+            includeLabelsDefault = includeLabelsDefault
+        )
+    }
+
+    fun dismissBatchCopySheet() {
+        _batchCopySheet.value = null
     }
 
     fun updateSearchQuery(value: String) {
@@ -766,7 +907,9 @@ class VedographiViewModel(
 
     fun markFontUsed(fontId: String, styledText: String? = null) {
         val spec = FontCatalog.findById(fontId)
-        val rawInput = _inputText.value.ifEmpty { "VEDOGRAPHi" }
+        val rawInput = _inputText.value.ifEmpty {
+            if (spec?.category == FontCategory.HINDI_CALLIGRAPHY) "हर शब्द • VEDOGRAPHi" else "VEDOGRAPHi"
+        }
         val output = styledText ?: spec?.transform(rawInput)
         viewModelScope.launch {
             repo.recordRecent(fontId)

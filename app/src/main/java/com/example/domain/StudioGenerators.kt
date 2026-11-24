@@ -118,7 +118,11 @@ object StudioGenerators {
         FontCatalog.findById("double_struck")!!,
         FontCatalog.findById("fraktur_gothic")!!,
         FontCatalog.findById("monospace")!!,
-        FontCatalog.findById("fullwidth")!!
+        FontCatalog.findById("fullwidth")!!,
+        FontCatalog.findById("hindi_kalash_royal")!!,
+        FontCatalog.findById("hindi_morpankh_script")!!,
+        FontCatalog.findById("hindi_shlok_gold")!!,
+        FontCatalog.findById("hindi_shayari_quote")!!
     )
 
     val bioDividers: List<Pair<String, String>> = listOf(
