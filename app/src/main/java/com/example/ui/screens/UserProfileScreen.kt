@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Tune
@@ -145,6 +146,7 @@ fun UserProfileScreen(
     onOpenRewards: () -> Unit = {},
     onOpenHowToUse: () -> Unit = {},
     onOpenAdminPanel: () -> Unit = {},
+    onOpenStoreHub: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedSection by rememberSaveable { mutableIntStateOf(0) }
@@ -652,6 +654,16 @@ fun UserProfileScreen(
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
+
+                ProfileSettingsActionRow(
+                    icon = Icons.Filled.RocketLaunch,
+                    iconTint = ElectricViolet,
+                    title = "Play Store & App Icon Hub",
+                    subtitle = "Adaptive launcher icon & publishing readiness checklist",
+                    testTag = "profile_store_hub_btn",
+                    onClick = onOpenStoreHub
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 ProfileSettingsActionRow(
                     icon = Icons.Filled.PrivacyTip,

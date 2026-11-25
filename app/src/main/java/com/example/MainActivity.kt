@@ -112,6 +112,7 @@ import com.example.ui.components.VedographiSplashScreen
 import com.example.ui.components.VedographiTopHeader
 import com.example.ui.screens.AboutScreen
 import com.example.ui.screens.AdminPanelScreen
+import com.example.ui.screens.AppStoreReadinessScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.BioCaptionScreen
 import com.example.ui.screens.FontsHomeScreen
@@ -147,6 +148,7 @@ const val ROUTE_ABOUT = "about_app"
 const val ROUTE_REWARDS = "rewards_earn"
 const val ROUTE_HOW_TO_USE = "how_to_use"
 const val ROUTE_ADMIN = "admin_panel"
+const val ROUTE_STORE_ICON = "store_icon_screen"
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -385,7 +387,8 @@ private fun VedographiAppShell(
         currentRoute == ROUTE_ABOUT ||
         currentRoute == ROUTE_REWARDS ||
         currentRoute == ROUTE_HOW_TO_USE ||
-        currentRoute == ROUTE_ADMIN
+        currentRoute == ROUTE_ADMIN ||
+        currentRoute == ROUTE_STORE_ICON
     var showAccountDialog by remember { mutableStateOf(false) }
     var isSigningIn by remember { mutableStateOf(false) }
     var guestSignInError by remember { mutableStateOf<String?>(null) }
@@ -1375,6 +1378,13 @@ private fun VedographiAppShell(
                                             showMessage("+$pts test points credited! Balance: $newBal pts")
                                         }
                                     }
+                                )
+                            }
+
+                            composable(ROUTE_STORE_ICON) {
+                                AppStoreReadinessScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onShowMessage = { msg -> showMessage(msg) }
                                 )
                             }
 
