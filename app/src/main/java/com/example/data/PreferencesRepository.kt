@@ -5,11 +5,15 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.domain.AppMonetizationConfig
 import com.example.domain.CachedEntrySource
 import com.example.domain.CachedStyleEntry
+import com.example.domain.CustomFontCodec
+import com.example.domain.CustomFontDefinition
 import com.example.domain.SavedCreation
 import com.example.domain.StudioDraftSnapshot
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +35,17 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
         val LAST_CLOUD_CACHE_SYNC_MS = longPreferencesKey("last_cloud_cache_sync_ms")
         val IS_GUEST_MODE = booleanPreferencesKey("is_guest_mode")
         val LAST_OWNER_UID = stringPreferencesKey("last_owner_uid")
+
+        // Points, Pro Fonts, Referrals, Custom Fonts, Quick Guide & Cached Config
+        val POINTS_BALANCE = intPreferencesKey("points_balance")
+        val UNLOCKED_PRO_FONT_IDS = stringPreferencesKey("unlocked_pro_font_ids")
+        val CUSTOM_FONTS_ENCODED = stringPreferencesKey("custom_fonts_encoded")
+        val MY_REFERRAL_CODE = stringPreferencesKey("my_referral_code")
+        val REDEEMED_REFERRAL_CODE = stringPreferencesKey("redeemed_referral_code")
+        val REFERRAL_COUNT = intPreferencesKey("referral_count")
+        val ADS_WATCHED_COUNT = intPreferencesKey("ads_watched_count")
+        val QUICK_GUIDE_DISMISSED = booleanPreferencesKey("quick_guide_dismissed")
+        val MONETIZATION_CONFIG_CACHE = stringPreferencesKey("monetization_config_cache")
     }
 
     val favoriteFontIds: Flow<Set<String>> = dataStore.data.map { prefs ->
@@ -65,6 +80,43 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
 
     val guestModeEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.IS_GUEST_MODE] ?: false
+    }
+
+    val pointsBalance: Flow<Int> = dataStore.data.map { prefs ->
+        (prefs[Keys.POINTS_BALANCE] ?: 0).coerceAtLeast(0)
+    }
+
+    val unlockedProFontIds: Flow<Set<String>> = dataStore.data.map { prefs ->
+        val raw = prefs[Keys.UNLOCKED_PRO_FONT_IDS].orEmpty()
+        if (raw.isBlank()) emptySet() else raw.split("|").filter { it.isNotBlank() }.toSet()
+    }
+
+    val customFonts: Flow<List<CustomFontDefinition>> = dataStore.data.map { prefs ->
+        CustomFontCodec.decodeList(prefs[Keys.CUSTOM_FONTS_ENCODED].orEmpty())
+    }
+
+    val myReferralCode: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[Keys.MY_REFERRAL_CODE]?.takeIf { it.isNotBlank() }
+    }
+
+    val redeemedReferralCode: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[Keys.REDEEMED_REFERRAL_CODE]?.takeIf { it.isNotBlank() }
+    }
+
+    val referralCount: Flow<Int> = dataStore.data.map { prefs ->
+        (prefs[Keys.REFERRAL_COUNT] ?: 0).coerceAtLeast(0)
+    }
+
+    val adsWatchedCount: Flow<Int> = dataStore.data.map { prefs ->
+        (prefs[Keys.ADS_WATCHED_COUNT] ?: 0).coerceAtLeast(0)
+    }
+
+    val quickGuideDismissed: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.QUICK_GUIDE_DISMISSED] ?: false
+    }
+
+    val cachedMonetizationConfig: Flow<AppMonetizationConfig> = dataStore.data.map { prefs ->
+        decodeMonetizationConfig(prefs[Keys.MONETIZATION_CONFIG_CACHE].orEmpty())
     }
 
     suspend fun toggleFavorite(fontId: String) {
@@ -102,6 +154,98 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun setDarkTheme(isDark: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.IS_DARK_THEME] = isDark
+        }
+    }
+
+    suspend fun setQuickGuideDismissed(dismissed: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.QUICK_GUIDE_DISMISSED] = dismissed
+        }
+    }
+
+    suspend fun addPoints(delta: Int, incrementAdsWatched: Boolean = false, incrementReferralCount: Boolean = false) {
+        if (delta == 0 && !incrementAdsWatched && !incrementReferralCount) return
+        dataStore.edit { prefs ->
+            val current = (prefs[Keys.POINTS_BALANCE] ?: 0).coerceAtLeast(0)
+            prefs[Keys.POINTS_BALANCE] = (current + delta).coerceAtLeast(0)
+            if (incrementAdsWatched) {
+                prefs[Keys.ADS_WATCHED_COUNT] = (prefs[Keys.ADS_WATCHED_COUNT] ?: 0) + 1
+            }
+            if (incrementReferralCount) {
+                prefs[Keys.REFERRAL_COUNT] = (prefs[Keys.REFERRAL_COUNT] ?: 0) + 1
+            }
+        }
+    }
+
+    suspend fun spendPointsAndUnlockProFont(fontId: String, cost: Int): Boolean {
+        var unlockedNow = false
+        dataStore.edit { prefs ->
+            val currentUnlocked = prefs[Keys.UNLOCKED_PRO_FONT_IDS].orEmpty()
+                .split("|")
+                .filter { it.isNotBlank() }
+                .toMutableSet()
+            if (fontId in currentUnlocked) {
+                unlockedNow = true
+                return@edit
+            }
+            val balance = (prefs[Keys.POINTS_BALANCE] ?: 0).coerceAtLeast(0)
+            if (balance >= cost) {
+                prefs[Keys.POINTS_BALANCE] = (balance - cost).coerceAtLeast(0)
+                currentUnlocked.add(fontId)
+                prefs[Keys.UNLOCKED_PRO_FONT_IDS] = currentUnlocked.joinToString("|")
+                unlockedNow = true
+            }
+        }
+        return unlockedNow
+    }
+
+    suspend fun setMyReferralCode(code: String) {
+        if (code.isBlank()) return
+        dataStore.edit { prefs ->
+            prefs[Keys.MY_REFERRAL_CODE] = code.trim().uppercase()
+        }
+    }
+
+    suspend fun recordRedeemedReferral(code: String, bonusPoints: Int) {
+        dataStore.edit { prefs ->
+            val alreadyRedeemed = prefs[Keys.REDEEMED_REFERRAL_CODE].orEmpty()
+            if (alreadyRedeemed.isBlank()) {
+                prefs[Keys.REDEEMED_REFERRAL_CODE] = code.trim().uppercase()
+                val current = (prefs[Keys.POINTS_BALANCE] ?: 0).coerceAtLeast(0)
+                prefs[Keys.POINTS_BALANCE] = current + bonusPoints.coerceAtLeast(0)
+            }
+        }
+    }
+
+    suspend fun saveCustomFont(definition: CustomFontDefinition) {
+        dataStore.edit { prefs ->
+            val list = CustomFontCodec.decodeList(prefs[Keys.CUSTOM_FONTS_ENCODED].orEmpty()).toMutableList()
+            list.removeAll { it.id == definition.id }
+            list.add(0, definition)
+            prefs[Keys.CUSTOM_FONTS_ENCODED] = CustomFontCodec.encodeList(list.take(30))
+        }
+    }
+
+    suspend fun deleteCustomFont(fontId: String) {
+        dataStore.edit { prefs ->
+            val list = CustomFontCodec.decodeList(prefs[Keys.CUSTOM_FONTS_ENCODED].orEmpty())
+                .filterNot { it.id == fontId }
+            prefs[Keys.CUSTOM_FONTS_ENCODED] = CustomFontCodec.encodeList(list)
+        }
+    }
+
+    suspend fun cacheCustomFonts(cloudCustomFonts: List<CustomFontDefinition>) {
+        dataStore.edit { prefs ->
+            val cloudIds = cloudCustomFonts.map { it.id }.toSet()
+            val existingLocal = CustomFontCodec.decodeList(prefs[Keys.CUSTOM_FONTS_ENCODED].orEmpty())
+            val localOnly = existingLocal.filter { it.id !in cloudIds }
+            prefs[Keys.CUSTOM_FONTS_ENCODED] = CustomFontCodec.encodeList((localOnly + cloudCustomFonts).take(30))
+        }
+    }
+
+    suspend fun cacheMonetizationConfig(config: AppMonetizationConfig) {
+        dataStore.edit { prefs ->
+            prefs[Keys.MONETIZATION_CONFIG_CACHE] = encodeMonetizationConfig(config)
         }
     }
 
@@ -155,27 +299,47 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
     }
 
     /**
-     * Read-through DataStore mirror of Firestore profile so favorites, recents, and theme
-     * remain immediately available when the device goes offline.
+     * Read-through DataStore mirror of Firestore profile so favorites, recents, points,
+     * unlocked Pro fonts, referral state, and theme remain immediately available offline.
      */
     suspend fun cacheCloudProfile(
         darkTheme: Boolean,
         favoriteIds: Set<String>,
         recentIds: List<String>,
+        pointsBalance: Int? = null,
+        unlockedProIds: Set<String>? = null,
+        referralCode: String? = null,
+        referredByCode: String? = null,
+        referralCount: Int? = null,
+        adsWatchedCount: Int? = null,
         syncedAtMillis: Long = System.currentTimeMillis()
     ) {
         dataStore.edit { prefs ->
             prefs[Keys.IS_DARK_THEME] = darkTheme
             prefs[Keys.FAVORITE_IDS] = favoriteIds.filter { it.isNotBlank() }.joinToString("|")
             prefs[Keys.RECENT_IDS] = recentIds.filter { it.isNotBlank() }.take(25).joinToString("|")
+            if (pointsBalance != null) {
+                prefs[Keys.POINTS_BALANCE] = pointsBalance.coerceAtLeast(0)
+            }
+            if (unlockedProIds != null) {
+                prefs[Keys.UNLOCKED_PRO_FONT_IDS] = unlockedProIds.filter { it.isNotBlank() }.joinToString("|")
+            }
+            if (!referralCode.isNullOrBlank()) {
+                prefs[Keys.MY_REFERRAL_CODE] = referralCode
+            }
+            if (!referredByCode.isNullOrBlank()) {
+                prefs[Keys.REDEEMED_REFERRAL_CODE] = referredByCode
+            }
+            if (referralCount != null) {
+                prefs[Keys.REFERRAL_COUNT] = referralCount.coerceAtLeast(0)
+            }
+            if (adsWatchedCount != null) {
+                prefs[Keys.ADS_WATCHED_COUNT] = adsWatchedCount.coerceAtLeast(0)
+            }
             prefs[Keys.LAST_CLOUD_CACHE_SYNC_MS] = syncedAtMillis
         }
     }
 
-    /**
-     * Read-through DataStore mirror of cloud-synced Studio creations.
-     * Preserves any locally created items not yet reflected in the cloud snapshot.
-     */
     suspend fun cacheCloudCreations(
         cloudCreations: List<SavedCreation>,
         syncedAtMillis: Long = System.currentTimeMillis()
@@ -197,12 +361,6 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
         }
     }
 
-    /**
-     * Ensures local DataStore data never leaks across different Google accounts.
-     * - If previous owner was Guest (blank UID), local favorites/creations/styles are preserved
-     *   so they can merge into the newly signed-in Google account.
-     * - If previous owner was a different Google account UID, clears previous account's local records first.
-     */
     suspend fun prepareSessionForUser(userId: String) {
         if (userId.isBlank()) return
         dataStore.edit { prefs ->
@@ -214,16 +372,19 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
                 prefs.remove(Keys.CACHED_GENERATED_STYLES)
                 prefs.remove(Keys.STUDIO_DRAFT_JSON)
                 prefs.remove(Keys.LAST_CLOUD_CACHE_SYNC_MS)
+                prefs.remove(Keys.POINTS_BALANCE)
+                prefs.remove(Keys.UNLOCKED_PRO_FONT_IDS)
+                prefs.remove(Keys.CUSTOM_FONTS_ENCODED)
+                prefs.remove(Keys.MY_REFERRAL_CODE)
+                prefs.remove(Keys.REDEEMED_REFERRAL_CODE)
+                prefs.remove(Keys.REFERRAL_COUNT)
+                prefs.remove(Keys.ADS_WATCHED_COUNT)
             }
             prefs[Keys.LAST_OWNER_UID] = userId
             prefs[Keys.IS_GUEST_MODE] = false
         }
     }
 
-    /**
-     * Clears signed-in user's cached local records & owner tag on explicit sign-out so
-     * private cloud data does not remain visible in Guest Mode or bleed into another Google account.
-     */
     suspend fun clearSessionOnSignOut() {
         dataStore.edit { prefs ->
             prefs.remove(Keys.FAVORITE_IDS)
@@ -233,14 +394,17 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
             prefs.remove(Keys.STUDIO_DRAFT_JSON)
             prefs.remove(Keys.LAST_CLOUD_CACHE_SYNC_MS)
             prefs.remove(Keys.LAST_OWNER_UID)
+            prefs.remove(Keys.POINTS_BALANCE)
+            prefs.remove(Keys.UNLOCKED_PRO_FONT_IDS)
+            prefs.remove(Keys.CUSTOM_FONTS_ENCODED)
+            prefs.remove(Keys.MY_REFERRAL_CODE)
+            prefs.remove(Keys.REDEEMED_REFERRAL_CODE)
+            prefs.remove(Keys.REFERRAL_COUNT)
+            prefs.remove(Keys.ADS_WATCHED_COUNT)
             prefs[Keys.IS_GUEST_MODE] = false
         }
     }
 
-    /**
-     * Wipes all user-generated local DataStore data (favorites, recents, saved creations,
-     * cached styles, studio drafts, and sync timestamp) while preserving theme & session flags.
-     */
     suspend fun clearAllUserData() {
         dataStore.edit { prefs ->
             prefs.remove(Keys.FAVORITE_IDS)
@@ -249,6 +413,7 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
             prefs.remove(Keys.CACHED_GENERATED_STYLES)
             prefs.remove(Keys.STUDIO_DRAFT_JSON)
             prefs.remove(Keys.LAST_CLOUD_CACHE_SYNC_MS)
+            prefs.remove(Keys.CUSTOM_FONTS_ENCODED)
         }
     }
 
@@ -412,6 +577,31 @@ class PreferencesRepository(private val dataStore: DataStore<Preferences>) {
             nameDesignerSubtitle = map["nameDesignerSubtitle"],
             waHeaderTag = map["waHeaderTag"],
             waBodyText = map["waBodyText"]
+        )
+    }
+
+    private fun encodeMonetizationConfig(config: AppMonetizationConfig): String {
+        return listOf(
+            config.adsEnabled.toString(),
+            escapeField(config.bannerAdUnitId),
+            escapeField(config.rewardedAdUnitId),
+            config.adRewardPoints.toString(),
+            config.referralBonusPoints.toString(),
+            escapeField(config.announcementBanner)
+        ).joinToString("|")
+    }
+
+    private fun decodeMonetizationConfig(raw: String): AppMonetizationConfig {
+        if (raw.isBlank()) return AppMonetizationConfig()
+        val parts = raw.split("|")
+        if (parts.size < 6) return AppMonetizationConfig()
+        return AppMonetizationConfig(
+            adsEnabled = parts[0].toBooleanStrictOrNull() ?: true,
+            bannerAdUnitId = unescapeField(parts[1]).ifBlank { AppMonetizationConfig.DEFAULT_TEST_BANNER_UNIT_ID },
+            rewardedAdUnitId = unescapeField(parts[2]).ifBlank { AppMonetizationConfig.DEFAULT_TEST_REWARDED_UNIT_ID },
+            adRewardPoints = parts[3].toIntOrNull()?.coerceIn(1, 100) ?: AppMonetizationConfig.DEFAULT_AD_REWARD_POINTS,
+            referralBonusPoints = parts[4].toIntOrNull()?.coerceIn(1, 50) ?: AppMonetizationConfig.DEFAULT_REFERRAL_BONUS_POINTS,
+            announcementBanner = unescapeField(parts[5])
         )
     }
 

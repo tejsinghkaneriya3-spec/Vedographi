@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
@@ -41,9 +42,13 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -462,13 +467,16 @@ fun VedographiTopHeader(
     onToggleTheme: () -> Unit,
     isCloudSynced: Boolean = false,
     isOnline: Boolean = true,
+    pointsBalance: Int = 0,
+    onPointsClick: (() -> Unit)? = null,
+    onHowToUseClick: (() -> Unit)? = null,
     onAccountClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -477,11 +485,11 @@ fun VedographiTopHeader(
             modifier = Modifier.weight(1f)
         ) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(13.dp),
                 color = ObsidianIconPlate,
                 border = BorderStroke(1.25.dp, ElectricViolet.copy(alpha = 0.65f)),
                 shadowElevation = 6.dp,
-                modifier = Modifier.size(46.dp)
+                modifier = Modifier.size(42.dp)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.vedographi_icon_1795394652656),
@@ -490,13 +498,13 @@ fun VedographiTopHeader(
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
                     text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.titleLarge.copy(
+                    style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.sp,
+                        letterSpacing = 0.8.sp,
                         brush = Brush.linearGradient(
                             colors = listOf(
                                 MaterialTheme.colorScheme.onBackground,
@@ -504,13 +512,15 @@ fun VedographiTopHeader(
                                 NeonOrchid
                             )
                         )
-                    )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = stringResource(R.string.brand_tagline),
-                    style = MaterialTheme.typography.labelLarge.copy(
+                    style = MaterialTheme.typography.labelMedium.copy(
                         fontFamily = KalamFontFamily,
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     ),
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -520,33 +530,59 @@ fun VedographiTopHeader(
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!isOnline) {
+            if (onPointsClick != null) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier.testTag("offline_mode_pill")
+                    color = RoyalViolet.copy(alpha = 0.18f),
+                    border = BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.7f)),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable(onClick = onPointsClick)
+                        .minimumInteractiveComponentSize()
+                        .testTag("header_points_pill")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.CloudOff,
-                            contentDescription = "Offline cache active",
+                            imageVector = Icons.Filled.Diamond,
+                            contentDescription = "Points balance",
                             tint = NeonOrchid,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Offline",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "$pointsBalance",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
+                }
+            }
+
+            if (onHowToUseClick != null) {
+                FilledTonalIconButton(
+                    onClick = onHowToUseClick,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .minimumInteractiveComponentSize()
+                        .testTag("header_how_to_use_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                        contentDescription = stringResource(R.string.how_to_use_title),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -562,12 +598,14 @@ fun VedographiTopHeader(
                         }
                     ),
                     modifier = Modifier
+                        .size(40.dp)
                         .minimumInteractiveComponentSize()
                         .testTag("account_sync_button")
                 ) {
                     Icon(
                         imageVector = if (isOnline) Icons.Filled.Public else Icons.Filled.CloudOff,
-                        contentDescription = if (isOnline) "Account and cloud sync" else "Offline DataStore cache active"
+                        contentDescription = if (isOnline) "Account and cloud sync" else "Offline DataStore cache active",
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -579,12 +617,14 @@ fun VedographiTopHeader(
                     contentColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier
+                    .size(40.dp)
                     .minimumInteractiveComponentSize()
                     .testTag("theme_toggle_button")
             ) {
                 Icon(
                     imageVector = if (isDarkTheme) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-                    contentDescription = stringResource(R.string.toggle_theme)
+                    contentDescription = stringResource(R.string.toggle_theme),
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -598,7 +638,9 @@ fun FontPreviewCard(
     onToggleFavorite: () -> Unit,
     onShare: () -> Unit,
     modifier: Modifier = Modifier,
-    previewFontFamily: FontFamily? = null
+    previewFontFamily: FontFamily? = null,
+    onUnlockPro: (() -> Unit)? = null,
+    onDeleteCustom: (() -> Unit)? = null
 ) {
     val haptic = LocalHapticFeedback.current
     val heartScale by animateFloatAsState(
@@ -611,25 +653,29 @@ fun FontPreviewCard(
     )
 
     val borderColor by animateColorAsState(
-        targetValue = if (item.isRecentlyCopied) {
-            EmeraldSuccess
-        } else {
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.72f)
+        targetValue = when {
+            item.isRecentlyCopied -> EmeraldSuccess
+            !item.isUnlocked -> NeonOrchid.copy(alpha = 0.72f)
+            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.72f)
         },
         label = "card_border"
     )
 
     val copyPulse = rememberCopyPulseState()
 
-    val triggerCopy = {
+    val triggerPrimaryAction: () -> Unit = {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        copyPulse.trigger()
-        onCopy()
+        if (item.isUnlocked) {
+            copyPulse.trigger()
+            onCopy()
+        } else {
+            onUnlockPro?.invoke()
+        }
     }
 
     VedographiContentCard(
         borderColor = borderColor,
-        onClick = triggerCopy,
+        onClick = triggerPrimaryAction,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         modifier = modifier.testTag("font_card_${item.spec.id}")
     ) {
@@ -650,9 +696,25 @@ fun FontPreviewCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 VedographiPillBadge(text = item.spec.category.label)
-                if (item.spec.badge != null) {
+                if (item.spec.isPro) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    VedographiPillBadge(
+                        text = if (item.isUnlocked) "PRO ✓" else "PRO • ${item.spec.proCost} pts",
+                        containerColor = if (item.isUnlocked) {
+                            EmeraldSuccess.copy(alpha = 0.16f)
+                        } else {
+                            NeonOrchid.copy(alpha = 0.18f)
+                        },
+                        contentColor = if (item.isUnlocked) EmeraldSuccess else NeonOrchid,
+                        borderColor = if (item.isUnlocked) {
+                            EmeraldSuccess.copy(alpha = 0.45f)
+                        } else {
+                            NeonOrchid.copy(alpha = 0.55f)
+                        }
+                    )
+                } else if (item.spec.badge != null) {
                     Spacer(modifier = Modifier.width(6.dp))
                     VedographiPillBadge(
                         text = item.spec.badge,
@@ -663,21 +725,80 @@ fun FontPreviewCard(
                 }
             }
 
-            IconButton(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onToggleFavorite()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (item.spec.isCustom && onDeleteCustom != null) {
+                    IconButton(
+                        onClick = onDeleteCustom,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("delete_custom_font_${item.spec.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteOutline,
+                            contentDescription = "Delete custom font",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onToggleFavorite()
+                    },
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("fav_button_${item.spec.id}")
+                ) {
+                    Icon(
+                        imageVector = if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = stringResource(R.string.action_favorite),
+                        tint = if (item.isFavorite) RoseHeart else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.scale(heartScale)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Platform Compatibility Indicator (WA/FB Safe vs IG/Bio)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            VedographiPillBadge(
+                text = if (item.spec.isWaFbSafe) "WA & FB ✓" else "IG / Bio",
+                containerColor = if (item.spec.isWaFbSafe) {
+                    EmeraldSuccess.copy(alpha = 0.14f)
+                } else {
+                    RoyalViolet.copy(alpha = 0.14f)
                 },
-                modifier = Modifier
-                    .minimumInteractiveComponentSize()
-                    .testTag("fav_button_${item.spec.id}")
-            ) {
-                Icon(
-                    imageVector = if (item.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = stringResource(R.string.action_favorite),
-                    tint = if (item.isFavorite) RoseHeart else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.scale(heartScale)
-                )
+                contentColor = if (item.spec.isWaFbSafe) {
+                    EmeraldSuccess
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                borderColor = if (item.spec.isWaFbSafe) {
+                    EmeraldSuccess.copy(alpha = 0.4f)
+                } else {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                }
+            )
+            if (!item.isUnlocked) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = "Locked Pro font",
+                        tint = NeonOrchid,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Unlock once with points • Yours forever",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NeonOrchid
+                    )
+                }
             }
         }
 
@@ -700,7 +821,11 @@ fun FontPreviewCard(
                     fontSize = 21.sp,
                     lineHeight = 30.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (item.isUnlocked) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp, vertical = 4.dp)
@@ -709,63 +834,92 @@ fun FontPreviewCard(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        if (item.isUnlocked) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = triggerPrimaryAction,
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                    colors = VedographiDefaults.primaryButtonColors(
+                        containerColor = if (item.isRecentlyCopied) EmeraldSuccess else RoyalViolet,
+                        contentColor = CrispWhite
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(VedographiDefaults.ButtonHeight)
+                        .testTag("copy_button_${item.spec.id}")
+                ) {
+                    AnimatedContent(
+                        targetState = item.isRecentlyCopied,
+                        label = "copy_state"
+                    ) { copied ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (copied) stringResource(R.string.action_copied) else stringResource(R.string.action_copy),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onShare,
+                    shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                    colors = VedographiDefaults.outlinedButtonColors(),
+                    border = VedographiDefaults.outlinedButtonBorder(),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .height(VedographiDefaults.ButtonHeight)
+                        .testTag("share_button_${item.spec.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.action_share),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+        } else {
             Button(
-                onClick = triggerCopy,
+                onClick = triggerPrimaryAction,
                 shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
                 colors = VedographiDefaults.primaryButtonColors(
-                    containerColor = if (item.isRecentlyCopied) EmeraldSuccess else RoyalViolet,
+                    containerColor = NeonOrchid.copy(alpha = 0.9f),
                     contentColor = CrispWhite
                 ),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .height(VedographiDefaults.ButtonHeight)
-                    .testTag("copy_button_${item.spec.id}")
-            ) {
-                AnimatedContent(
-                    targetState = item.isRecentlyCopied,
-                    label = "copy_state"
-                ) { copied ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (copied) stringResource(R.string.action_copied) else stringResource(R.string.action_copy),
-                            style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                }
-            }
-
-            OutlinedButton(
-                onClick = onShare,
-                shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
-                colors = VedographiDefaults.outlinedButtonColors(),
-                border = VedographiDefaults.outlinedButtonBorder(),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                modifier = Modifier
-                    .height(VedographiDefaults.ButtonHeight)
-                    .testTag("share_button_${item.spec.id}")
+                    .testTag("unlock_pro_button_${item.spec.id}")
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Share,
+                    imageVector = Icons.Filled.LockOpen,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(17.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = stringResource(R.string.action_share),
+                    text = "Unlock Pro Font (${item.spec.proCost} pts)",
                     style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                     softWrap = false

@@ -14,6 +14,9 @@ object FontCatalog {
         suffix: String,
         trending: Boolean = false,
         badge: String? = null,
+        isWaFbSafe: Boolean = true,
+        isPro: Boolean = false,
+        proCost: Int = 5,
         base: (String) -> String
     ) = FontStyleSpec(
         id = id,
@@ -21,6 +24,9 @@ object FontCatalog {
         category = category,
         isTrending = trending,
         badge = badge,
+        isWaFbSafe = isWaFbSafe,
+        isPro = isPro,
+        proCost = proCost,
         transform = { input -> "$prefix${base(input)}$suffix" }
     )
 
@@ -31,8 +37,12 @@ object FontCatalog {
         suffix: String,
         calligraphyPresetId: String,
         trending: Boolean = false,
-        badge: String = "हिंदी",
+        badge: String = "हिंदी WA/FB",
         useDevanagariDigits: Boolean = true,
+        isWaFbSafe: Boolean = true,
+        isPro: Boolean = false,
+        proCost: Int = 5,
+        hindiTransform: (String) -> String = { it },
         base: (String) -> String
     ) = FontStyleSpec(
         id = id,
@@ -41,10 +51,14 @@ object FontCatalog {
         isTrending = trending,
         badge = badge,
         calligraphyPresetId = calligraphyPresetId,
+        isWaFbSafe = isWaFbSafe,
+        isPro = isPro,
+        proCost = proCost,
         transform = { input ->
             UnicodeFontEngine.hindiCalligraphyStyle(
                 input = input,
                 englishTransform = base,
+                hindiTransform = hindiTransform,
                 useDevanagariDigits = useDevanagariDigits,
                 prefix = prefix,
                 suffix = suffix
@@ -113,14 +127,17 @@ object FontCatalog {
         wrapped("stylish_wide_bar", "Synthwave Grid", FontCategory.STYLISH, "░▒ ", " ▒░") {
             UnicodeFontEngine.fullwidth(it)
         },
-        wrapped("stylish_bling_crown", "Richie Rich", FontCategory.STYLISH, "💸 ", " 💸") {
+        wrapped("stylish_bling_crown", "Richie Rich", FontCategory.STYLISH, "💸 ", " 💸", isPro = true, proCost = 5) {
             UnicodeFontEngine.currencyBling(it)
         },
-        wrapped("stylish_greek_star", "Olympus Star", FontCategory.STYLISH, "✦ ", " ✦") {
+        wrapped("stylish_greek_star", "Olympus Star", FontCategory.STYLISH, "✦ ", " ✦", isPro = true, proCost = 5) {
             UnicodeFontEngine.greekAesthetic(it)
         },
-        wrapped("stylish_mono_underline", "Underlined Mono", FontCategory.STYLISH, "", "") {
+        FontStyleSpec("stylish_mono_underline", "Underlined Mono", FontCategory.STYLISH, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.monospace(it), 0x0332)
+        },
+        FontStyleSpec("wa_native_mono", "WhatsApp Mono Code", FontCategory.STYLISH, badge = "WA", isWaFbSafe = true) {
+            UnicodeFontEngine.whatsappMono(it)
         },
 
         // =========================================================
@@ -147,17 +164,26 @@ object FontCatalog {
         wrapped("bold_slash_wing", "Slash Wing Bold", FontCategory.BOLD, "彡 ", " 彡") {
             UnicodeFontEngine.sansBold(it)
         },
-        wrapped("bold_upper", "Thunder Shout Caps", FontCategory.BOLD, "⚡ ", " ⚡") {
+        wrapped("bold_upper", "Thunder Shout Caps", FontCategory.BOLD, "⚡ ", " ⚡", isPro = true, proCost = 5) {
             UnicodeFontEngine.sansBold(it.uppercase())
         },
-        FontStyleSpec("bold_underline", "Bold Underline", FontCategory.BOLD) {
+        FontStyleSpec("bold_underline", "Bold Underline", FontCategory.BOLD, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.sansBold(it), 0x0332)
         },
-        FontStyleSpec("bold_double_underline", "Bold Double Line", FontCategory.BOLD) {
+        FontStyleSpec("bold_double_underline", "Bold Double Line", FontCategory.BOLD, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.sansBold(it), 0x0333)
         },
-        FontStyleSpec("bold_strike", "Bold Strikethrough", FontCategory.BOLD) {
+        FontStyleSpec("bold_strike", "Bold Strikethrough", FontCategory.BOLD, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.sansBold(it), 0x0336)
+        },
+        FontStyleSpec("wa_native_bold", "WhatsApp Bold (*text*)", FontCategory.BOLD, isTrending = true, badge = "WA", isWaFbSafe = true) {
+            UnicodeFontEngine.whatsappBold(it)
+        },
+        FontStyleSpec("wa_native_bold_italic", "WhatsApp Bold Italic", FontCategory.BOLD, badge = "WA", isWaFbSafe = true) {
+            UnicodeFontEngine.whatsappBoldItalic(it)
+        },
+        FontStyleSpec("wa_native_strike", "WhatsApp Strike (~text~)", FontCategory.BOLD, badge = "WA", isWaFbSafe = true) {
+            UnicodeFontEngine.whatsappStrike(it)
         },
         FontStyleSpec("bold_spaced", "Wide Impact Bold", FontCategory.BOLD) {
             UnicodeFontEngine.interleaveAscii(UnicodeFontEngine.sansBold(it), " ")
@@ -202,7 +228,7 @@ object FontCatalog {
         wrapped("script_heart", "Love Calligraphy", FontCategory.CURSIVE, "♡ ", " ♡", trending = true) {
             UnicodeFontEngine.boldScript(it)
         },
-        wrapped("script_wings", "Angel Wing Script", FontCategory.CURSIVE, "꧁ ", " ꧂", trending = true) {
+        wrapped("script_wings", "Angel Wing Script", FontCategory.CURSIVE, "꧁ ", " ꧂", trending = true, isPro = true, proCost = 5) {
             UnicodeFontEngine.boldScript(it)
         },
         wrapped("script_butterfly", "Butterfly Script", FontCategory.CURSIVE, "ʚïɞ ", " ʚïɞ") {
@@ -217,13 +243,13 @@ object FontCatalog {
         wrapped("script_ribbon", "Ribbon Swirl", FontCategory.CURSIVE, "୨୧ ", " ୨୧") {
             UnicodeFontEngine.scriptCursive(it)
         },
-        wrapped("script_star", "Starlight Script", FontCategory.CURSIVE, "✧･ﾟ: * ", " *:･ﾟ✧") {
+        wrapped("script_star", "Starlight Script", FontCategory.CURSIVE, "✧･ﾟ: * ", " *:･ﾟ✧", isPro = true, proCost = 6) {
             UnicodeFontEngine.boldScript(it)
         },
         wrapped("script_feather", "Quill Feather", FontCategory.CURSIVE, "❦ ", " ❦") {
             UnicodeFontEngine.scriptCursive(it)
         },
-        wrapped("script_crown", "Queen Calligraphy", FontCategory.CURSIVE, "♕ ", " ♕") {
+        wrapped("script_crown", "Queen Calligraphy", FontCategory.CURSIVE, "♕ ", " ♕", isPro = true, proCost = 5) {
             UnicodeFontEngine.boldScript(it)
         },
         wrapped("curvy_sparkle", "Glitter Curvy", FontCategory.CURSIVE, "✨ ", " ✨") {
@@ -244,10 +270,10 @@ object FontCatalog {
         wrapped("script_tulip", "Lotus Calligraphy", FontCategory.CURSIVE, "🌷 ", " 🌷") {
             UnicodeFontEngine.boldScript(it)
         },
-        wrapped("script_underline", "Underlined Script", FontCategory.CURSIVE, "", "") {
+        FontStyleSpec("script_underline", "Underlined Script", FontCategory.CURSIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.boldScript(it), 0x0332)
         },
-        wrapped("script_gold_swash", "Royal Swash", FontCategory.CURSIVE, "༺ ", " ༻") {
+        wrapped("script_gold_swash", "Royal Swash", FontCategory.CURSIVE, "༺ ", " ༻", isPro = true, proCost = 6) {
             UnicodeFontEngine.scriptCursive(it)
         },
 
@@ -260,7 +286,7 @@ object FontCatalog {
         FontStyleSpec("bold_fraktur", "Dark Empire Bold", FontCategory.GOTHIC, isTrending = true, badge = "HOT") {
             UnicodeFontEngine.boldFraktur(it)
         },
-        wrapped("gothic_lord", "Royal Trishul Gothic", FontCategory.GOTHIC, "꧁༒☬ ", " ☬༒꧂", trending = true) {
+        wrapped("gothic_lord", "Royal Trishul Gothic", FontCategory.GOTHIC, "꧁༒☬ ", " ☬༒꧂", trending = true, isPro = true, proCost = 6) {
             UnicodeFontEngine.boldFraktur(it)
         },
         wrapped("gothic_sword", "Blade Knight", FontCategory.GOTHIC, "⚔ ", " ⚔") {
@@ -275,13 +301,13 @@ object FontCatalog {
         wrapped("gothic_cross", "Vampire Crest", FontCategory.GOTHIC, "† ", " †") {
             UnicodeFontEngine.frakturGothic(it)
         },
-        wrapped("gothic_crown", "Dark Monarch", FontCategory.GOTHIC, "♚ ", " ♚") {
+        wrapped("gothic_crown", "Dark Monarch", FontCategory.GOTHIC, "♚ ", " ♚", isPro = true, proCost = 5) {
             UnicodeFontEngine.boldFraktur(it)
         },
         wrapped("gothic_spade", "Ace of Spades", FontCategory.GOTHIC, "♠ ", " ♠") {
             UnicodeFontEngine.frakturGothic(it)
         },
-        wrapped("gothic_dragon", "Dragon Clan Gothic", FontCategory.GOTHIC, "乡 ", " 乡") {
+        wrapped("gothic_dragon", "Dragon Clan Gothic", FontCategory.GOTHIC, "乡 ", " 乡", isPro = true, proCost = 5) {
             UnicodeFontEngine.boldFraktur(it)
         },
         wrapped("gothic_slash", "Bloodline Gothic", FontCategory.GOTHIC, "◤ ", " ◢") {
@@ -330,19 +356,22 @@ object FontCatalog {
         FontStyleSpec("sans_italic", "Editorial Italic", FontCategory.SERIF) {
             UnicodeFontEngine.sansItalic(it)
         },
-        FontStyleSpec("serif_underline", "Serif Underline", FontCategory.SERIF) {
+        FontStyleSpec("serif_underline", "Serif Underline", FontCategory.SERIF, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.serifBold(it), 0x0332)
         },
-        FontStyleSpec("serif_double_underline", "Serif Double Rule", FontCategory.SERIF) {
+        FontStyleSpec("serif_double_underline", "Serif Double Rule", FontCategory.SERIF, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.serifBold(it), 0x0333)
         },
-        FontStyleSpec("serif_italic_underline", "Poetic Underline", FontCategory.SERIF) {
+        FontStyleSpec("serif_italic_underline", "Poetic Underline", FontCategory.SERIF, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.serifItalic(it), 0x0332)
+        },
+        FontStyleSpec("wa_native_italic", "WhatsApp Italic (_text_)", FontCategory.SERIF, badge = "WA", isWaFbSafe = true) {
+            UnicodeFontEngine.whatsappItalic(it)
         },
         FontStyleSpec("serif_spaced", "Vogue Serif Spaced", FontCategory.SERIF) {
             UnicodeFontEngine.interleaveAscii(UnicodeFontEngine.serifBold(it), " ")
         },
-        wrapped("serif_crown", "Monarch Serif", FontCategory.SERIF, "♛ ", " ♛") {
+        wrapped("serif_crown", "Monarch Serif", FontCategory.SERIF, "♛ ", " ♛", isPro = true, proCost = 5) {
             UnicodeFontEngine.serifBold(it)
         },
         wrapped("serif_spark", "Sparkle Serif Italic", FontCategory.SERIF, "✦ ", " ✦") {
@@ -375,7 +404,7 @@ object FontCatalog {
         wrapped("serif_upper_bold", "Monumental Caps", FontCategory.SERIF, "", "") {
             UnicodeFontEngine.serifBold(it.uppercase())
         },
-        FontStyleSpec("serif_strike", "Redacted Serif", FontCategory.SERIF) {
+        FontStyleSpec("serif_strike", "Redacted Serif", FontCategory.SERIF, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.serifBold(it), 0x0336)
         },
 
@@ -397,7 +426,7 @@ object FontCatalog {
         FontStyleSpec("parenthesized", "Parenthesized", FontCategory.BUBBLE) {
             UnicodeFontEngine.parenthesized(it)
         },
-        FontStyleSpec("regional_blocks", "Blue Keycaps", FontCategory.BUBBLE) {
+        FontStyleSpec("regional_blocks", "Blue Keycaps", FontCategory.BUBBLE, isWaFbSafe = false) {
             UnicodeFontEngine.regionalBlocks(it)
         },
         wrapped("bubble_cloud", "Cloud Bubbles", FontCategory.BUBBLE, "☁ ", " ☁") {
@@ -482,10 +511,10 @@ object FontCatalog {
         wrapped("small_caps_ribbon", "Aesthetic Small Caps", FontCategory.SMALL_CAPS, "°•. ✿ ", " ✿ .•°") {
             UnicodeFontEngine.smallCaps(it)
         },
-        FontStyleSpec("small_caps_underline", "Underlined Small Caps", FontCategory.SMALL_CAPS) {
+        FontStyleSpec("small_caps_underline", "Underlined Small Caps", FontCategory.SMALL_CAPS, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.smallCaps(it), 0x0332)
         },
-        wrapped("small_caps_verified", "Creator Handle", FontCategory.SMALL_CAPS, "@", " ☑") {
+        wrapped("small_caps_verified", "Creator Handle", FontCategory.SMALL_CAPS, "@", " ☑", isPro = true, proCost = 5) {
             UnicodeFontEngine.smallCaps(it)
         },
         wrapped("small_caps_moon", "Moonlit Small Caps", FontCategory.SMALL_CAPS, "☾ ", " ☽") {
@@ -531,10 +560,10 @@ object FontCatalog {
         FontStyleSpec("double_spaced", "Airy Double-Struck", FontCategory.DOUBLE_STRUCK) {
             UnicodeFontEngine.interleaveAscii(UnicodeFontEngine.doubleStruck(it), " ")
         },
-        FontStyleSpec("double_underline", "Underlined Double", FontCategory.DOUBLE_STRUCK) {
+        FontStyleSpec("double_underline", "Underlined Double", FontCategory.DOUBLE_STRUCK, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.doubleStruck(it), 0x0332)
         },
-        wrapped("double_wings", "Angel Double", FontCategory.DOUBLE_STRUCK, "༺ ", " ༻") {
+        wrapped("double_wings", "Angel Double", FontCategory.DOUBLE_STRUCK, "༺ ", " ༻", isPro = true, proCost = 5) {
             UnicodeFontEngine.doubleStruck(it)
         },
         wrapped("double_spark", "Cosmic Double", FontCategory.DOUBLE_STRUCK, "✴ ", " ✴") {
@@ -546,7 +575,7 @@ object FontCatalog {
         wrapped("double_heart", "Pure Heart Double", FontCategory.DOUBLE_STRUCK, "♡ ", " ♡") {
             UnicodeFontEngine.doubleStruck(it)
         },
-        wrapped("double_box", "Crystal Frame", FontCategory.DOUBLE_STRUCK, "❖ ", " ❖") {
+        wrapped("double_box", "Crystal Frame", FontCategory.DOUBLE_STRUCK, "❖ ", " ❖", isPro = true, proCost = 6) {
             UnicodeFontEngine.doubleStruck(it)
         },
         wrapped("double_hex", "Tech Hex Double", FontCategory.DOUBLE_STRUCK, "⬡ ", " ⬡") {
@@ -558,7 +587,7 @@ object FontCatalog {
         wrapped("double_verified", "Verified Double", FontCategory.DOUBLE_STRUCK, "✦ ", " ☑") {
             UnicodeFontEngine.doubleStruck(it)
         },
-        wrapped("double_diamond", "Diamond Double", FontCategory.DOUBLE_STRUCK, "💎 ", " 💎") {
+        wrapped("double_diamond", "Diamond Double", FontCategory.DOUBLE_STRUCK, "💎 ", " 💎", isPro = true, proCost = 6) {
             UnicodeFontEngine.doubleStruck(it)
         },
         wrapped("double_lightning", "Volt Double", FontCategory.DOUBLE_STRUCK, "⚡ ", " ⚡") {
@@ -573,32 +602,32 @@ object FontCatalog {
         FontStyleSpec("double_upper", "Monument Double Caps", FontCategory.DOUBLE_STRUCK) {
             UnicodeFontEngine.doubleStruck(it.uppercase())
         },
-        FontStyleSpec("double_strike", "Crossed Double", FontCategory.DOUBLE_STRUCK) {
+        FontStyleSpec("double_strike", "Crossed Double", FontCategory.DOUBLE_STRUCK, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(UnicodeFontEngine.doubleStruck(it), 0x0336)
         },
 
         // =========================================================
         // 9. DECORATIVE (28 styles)
         // =========================================================
-        FontStyleSpec("strikethrough", "Strikethrough", FontCategory.DECORATIVE) {
+        FontStyleSpec("strikethrough", "Strikethrough", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0336)
         },
-        FontStyleSpec("slash_through", "Diagonal Slash", FontCategory.DECORATIVE) {
+        FontStyleSpec("slash_through", "Diagonal Slash", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0338)
         },
-        FontStyleSpec("underline_single", "Clean Underline", FontCategory.DECORATIVE) {
+        FontStyleSpec("underline_single", "Clean Underline", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0332)
         },
-        FontStyleSpec("underline_double", "Double Underline", FontCategory.DECORATIVE) {
+        FontStyleSpec("underline_double", "Double Underline", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0333)
         },
-        FontStyleSpec("overline", "Overhead Bar", FontCategory.DECORATIVE) {
+        FontStyleSpec("overline", "Overhead Bar", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0305)
         },
-        FontStyleSpec("dotted_aura", "Dotted Halo", FontCategory.DECORATIVE) {
+        FontStyleSpec("dotted_aura", "Dotted Halo", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0307, 0x0323)
         },
-        FontStyleSpec("wavy_tilde", "Wavy Strike", FontCategory.DECORATIVE) {
+        FontStyleSpec("wavy_tilde", "Wavy Strike", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0334)
         },
         FontStyleSpec("double_dot_top", "Umlaut Chic", FontCategory.DECORATIVE) {
@@ -607,37 +636,37 @@ object FontCatalog {
         FontStyleSpec("slash_alt", "Slashed Letters", FontCategory.DECORATIVE) {
             UnicodeFontEngine.slashAlt(it)
         },
-        FontStyleSpec("deco_ring_above", "Halo Ring Top", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_ring_above", "Halo Ring Top", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x030A)
         },
-        FontStyleSpec("deco_tilde_top", "Tilde Wave Top", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_tilde_top", "Tilde Wave Top", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0303)
         },
-        FontStyleSpec("deco_short_stroke", "Short Crossbar", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_short_stroke", "Short Crossbar", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0335)
         },
-        FontStyleSpec("deco_diaeresis_below", "Twin Dots Below", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_diaeresis_below", "Twin Dots Below", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0324)
         },
-        FontStyleSpec("deco_circumflex_below", "Chevron Below", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_circumflex_below", "Chevron Below", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x032D)
         },
-        FontStyleSpec("deco_square_below", "Pixel Base", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_square_below", "Pixel Base", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x033B)
         },
-        FontStyleSpec("deco_seagull_below", "Winged Underscore", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_seagull_below", "Winged Underscore", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x033C)
         },
-        FontStyleSpec("deco_arrow_below", "Upward Arrow Base", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_arrow_below", "Upward Arrow Base", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x034E)
         },
-        FontStyleSpec("deco_arch_above", "Crown Arch Top", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_arch_above", "Crown Arch Top", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0311)
         },
-        FontStyleSpec("deco_sandwich_bar", "Top & Bottom Bars", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_sandwich_bar", "Top & Bottom Bars", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0305, 0x0332)
         },
-        FontStyleSpec("deco_crosshatch", "Crossed Grid", FontCategory.DECORATIVE) {
+        FontStyleSpec("deco_crosshatch", "Crossed Grid", FontCategory.DECORATIVE, isWaFbSafe = false) {
             UnicodeFontEngine.combineAscii(it, 0x0336, 0x0338)
         },
         FontStyleSpec("lightning_join", "Lightning Joiner", FontCategory.DECORATIVE) {
@@ -668,7 +697,7 @@ object FontCatalog {
         // =========================================================
         // 10. FANCY (28 styles)
         // =========================================================
-        wrapped("deco_maharaja", "Maharaja Royal", FontCategory.FANCY, "꧁༒☬ ", " ☬༒꧂", trending = true, badge = "DESI") {
+        wrapped("deco_maharaja", "Maharaja Royal", FontCategory.FANCY, "꧁༒☬ ", " ☬༒꧂", trending = true, badge = "DESI", isPro = true, proCost = 6) {
             UnicodeFontEngine.serifBold(it)
         },
         wrapped("deco_shahi", "Shahi Swag", FontCategory.FANCY, "★彡 ", " 彡★", trending = true) {
@@ -677,7 +706,7 @@ object FontCatalog {
         wrapped("deco_insta_pro", "Insta Aesthetic", FontCategory.FANCY, "°•. ✿ ", " ✿ .•°") {
             UnicodeFontEngine.smallCaps(it)
         },
-        wrapped("deco_bgmi_clan", "Pro Gamer Tag", FontCategory.FANCY, "乡『 ", " 』ツ") {
+        wrapped("deco_bgmi_clan", "Pro Gamer Tag", FontCategory.FANCY, "乡『 ", " 』ツ", isPro = true, proCost = 5) {
             UnicodeFontEngine.sansBold(it)
         },
         wrapped("deco_music", "Vibe Melody", FontCategory.FANCY, "♫♪.ılılıll ", " llılılı.♪♫") {
@@ -698,16 +727,16 @@ object FontCatalog {
         wrapped("deco_lotus", "Padma Elegance", FontCategory.FANCY, "❀•° ", " °•❀") {
             UnicodeFontEngine.scriptCursive(it)
         },
-        wrapped("deco_crown_king", "Attitude King", FontCategory.FANCY, "👑 ", " 👑") {
+        wrapped("deco_crown_king", "Attitude King", FontCategory.FANCY, "👑 ", " 👑", isPro = true, proCost = 5) {
             UnicodeFontEngine.sansBold(it)
         },
         wrapped("deco_fire_squad", "Blaze Streak", FontCategory.FANCY, "🔥⚡ ", " ⚡🔥") {
             UnicodeFontEngine.sansBoldItalic(it)
         },
-        wrapped("deco_diamond_lux", "Diamond Luxury", FontCategory.FANCY, "💎 ", " 💎") {
+        wrapped("deco_diamond_lux", "Diamond Luxury", FontCategory.FANCY, "💎 ", " 💎", isPro = true, proCost = 7) {
             UnicodeFontEngine.doubleStruck(it)
         },
-        wrapped("deco_check_verified", "Verified Creator", FontCategory.FANCY, "✦ ", " ☑") {
+        wrapped("deco_check_verified", "Verified Creator", FontCategory.FANCY, "✦ ", " ☑", isPro = true, proCost = 5) {
             UnicodeFontEngine.sansBold(it)
         },
         wrapped("deco_zen", "Zen Minimal", FontCategory.FANCY, "〔 ✧ ", " ✧ 〕") {
@@ -716,7 +745,7 @@ object FontCatalog {
         wrapped("deco_infinity", "Infinity Loop", FontCategory.FANCY, "∞ ", " ∞") {
             UnicodeFontEngine.boldScript(it)
         },
-        wrapped("fancy_phoenix", "Phoenix Wings", FontCategory.FANCY, "༺🔥 ", " 🔥༻") {
+        wrapped("fancy_phoenix", "Phoenix Wings", FontCategory.FANCY, "༺🔥 ", " 🔥༻", isPro = true, proCost = 6) {
             UnicodeFontEngine.boldFraktur(it)
         },
         wrapped("fancy_galaxy", "Galaxy Stardust", FontCategory.FANCY, "⋆｡°✩ ", " ✩°｡⋆") {
@@ -743,7 +772,7 @@ object FontCatalog {
         wrapped("fancy_midnight", "Midnight Crescent", FontCategory.FANCY, "🌙✨ ", " ✨🌙") {
             UnicodeFontEngine.boldScript(it)
         },
-        wrapped("fancy_heart_queen", "Queen of Hearts", FontCategory.FANCY, "♥♕ ", " ♕♥") {
+        wrapped("fancy_heart_queen", "Queen of Hearts", FontCategory.FANCY, "♥♕ ", " ♕♥", isPro = true, proCost = 5) {
             UnicodeFontEngine.serifBold(it)
         },
         wrapped("fancy_cyber_pulse", "Neon Pulse", FontCategory.FANCY, "◈⚡ ", " ⚡◈") {
@@ -754,73 +783,289 @@ object FontCatalog {
         },
 
         // =========================================================
-        // 11. HINDI CALLIGRAPHY (22 stylized Unicode Devanagari fonts)
+        // 11. HINDI CALLIGRAPHY (26 akshara-safe Unicode Devanagari styles for WA/FB/IG)
         // =========================================================
-        hindiStyle("hindi_kalash_royal", "कलश रॉयल • Kalash Royal", "🪷꧁ ", " ꧂🪷", calligraphyPresetId = "rozha_one", trending = true, badge = "HINDI") {
+        hindiStyle(
+            id = "hindi_kalash_royal",
+            name = "कलश रॉयल • Kalash Royal",
+            prefix = "🪷꧁ ",
+            suffix = " ꧂🪷",
+            calligraphyPresetId = "rozha_one",
+            trending = true,
+            badge = "HINDI WA/FB",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "•") }
+        ) {
             UnicodeFontEngine.boldScript(it)
         },
-        hindiStyle("hindi_morpankh_script", "मोरपंख • Morpankh Script", "🦚❦ ", " ❦🦚", calligraphyPresetId = "amita", trending = true, badge = "AMITA") {
+        hindiStyle(
+            id = "hindi_morpankh_script",
+            name = "मोरपंख • Morpankh Script",
+            prefix = "🦚❦ ",
+            suffix = " ❦🦚",
+            calligraphyPresetId = "amita",
+            trending = true,
+            badge = "WA BOLD",
+            hindiTransform = { UnicodeFontEngine.whatsappBold(it) }
+        ) {
             UnicodeFontEngine.scriptCursive(it)
         },
-        hindiStyle("hindi_shlok_gold", "श्लोक मंत्र • Shlok Gold", "॥ ॐ ", " ॐ ॥", calligraphyPresetId = "yatra_one", trending = true, badge = "VEDIC") {
+        hindiStyle(
+            id = "hindi_shlok_gold",
+            name = "श्लोक मंत्र • Shlok Gold",
+            prefix = "॥ ॐ ",
+            suffix = " ॐ ॥",
+            calligraphyPresetId = "yatra_one",
+            trending = true,
+            badge = "VEDIC",
+            hindiTransform = { UnicodeFontEngine.hindiWordWrap(it, "『", "』") }
+        ) {
             UnicodeFontEngine.serifBoldItalic(it)
         },
-        hindiStyle("hindi_shayari_quote", "शायरी कलाम • Shayari Ink", "❝❦ ", " ❦❞", calligraphyPresetId = "kalam", trending = true, badge = "SHAYARI") {
+        hindiStyle(
+            id = "hindi_shayari_quote",
+            name = "शायरी कलाम • Shayari Ink",
+            prefix = "❝❦ ",
+            suffix = " ❦❞",
+            calligraphyPresetId = "kalam",
+            trending = true,
+            badge = "WA ITALIC",
+            hindiTransform = { UnicodeFontEngine.whatsappItalic(it) }
+        ) {
             UnicodeFontEngine.serifItalic(it)
         },
-        hindiStyle("hindi_diya_festive", "दीया उत्सव • Diya Glow", "🪔✨ ", " ✨🪔", calligraphyPresetId = "tillana", badge = "FESTIVE") {
+        hindiStyle(
+            id = "hindi_diya_festive",
+            name = "दीया उत्सव • Diya Glow",
+            prefix = "🪔✨ ",
+            suffix = " ✨🪔",
+            calligraphyPresetId = "tillana",
+            badge = "FESTIVE",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "✦") }
+        ) {
             UnicodeFontEngine.sansBoldItalic(it)
         },
-        hindiStyle("hindi_tilak_swag", "तिलक स्वैग • Tilak Swag", "🚩彡 ", " 彡🚩", calligraphyPresetId = "yatra_one", badge = "SWAG") {
+        hindiStyle(
+            id = "hindi_tilak_swag",
+            name = "तिलक स्वैग • Tilak Swag",
+            prefix = "🚩彡 ",
+            suffix = " 彡🚩",
+            calligraphyPresetId = "yatra_one",
+            badge = "SWAG",
+            hindiTransform = { UnicodeFontEngine.hindiWordWrap(it, "【", "】") }
+        ) {
             UnicodeFontEngine.sansBold(it)
         },
-        hindiStyle("hindi_rajwada_crown", "रजवाड़ा शाही • Rajwada Royal", "꧁༒ॐ ", " ॐ༒꧂", calligraphyPresetId = "rozha_one", trending = true, badge = "ROYAL") {
+        hindiStyle(
+            id = "hindi_rajwada_crown",
+            name = "रजवाड़ा शाही • Rajwada Royal",
+            prefix = "꧁༒ॐ ",
+            suffix = " ॐ༒꧂",
+            calligraphyPresetId = "rozha_one",
+            trending = true,
+            badge = "ROYAL",
+            isPro = true,
+            proCost = 6,
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "⋅") }
+        ) {
             UnicodeFontEngine.serifBold(it)
         },
-        hindiStyle("hindi_kavyanjali_scroll", "काव्यांजलि • Kavyanjali Scroll", "༺❦ ", " ❦༻", calligraphyPresetId = "amita", badge = "KAVYA") {
+        hindiStyle(
+            id = "hindi_kavyanjali_scroll",
+            name = "काव्यांजलि • Kavyanjali Scroll",
+            prefix = "༺❦ ",
+            suffix = " ❦༻",
+            calligraphyPresetId = "amita",
+            badge = "KAVYA",
+            hindiTransform = { UnicodeFontEngine.hindiWordWrap(it, "༺", "༻") }
+        ) {
             UnicodeFontEngine.boldScript(it)
         },
-        hindiStyle("hindi_shree_temple", "श्री मंगल • Shree Mandir", "॥ श्री ", " श्री ॥", calligraphyPresetId = "rozha_one", badge = "SHUBH") {
+        hindiStyle(
+            id = "hindi_shree_temple",
+            name = "श्री मंगल • Shree Mandir",
+            prefix = "॥ श्री ",
+            suffix = " श्री ॥",
+            calligraphyPresetId = "rozha_one",
+            badge = "SHUBH",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "॰") }
+        ) {
             UnicodeFontEngine.serifBold(it)
         },
-        hindiStyle("hindi_chandan_minimal", "चंदन मोती • Chandan Minimal", "•┈┈✦ ", " ✦┈┈•", calligraphyPresetId = "gotu", badge = "MINIMAL") {
+        hindiStyle(
+            id = "hindi_chandan_minimal",
+            name = "चंदन मोती • Chandan Minimal",
+            prefix = "•┈┈✦ ",
+            suffix = " ✦┈┈•",
+            calligraphyPresetId = "gotu",
+            badge = "MINIMAL",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, " ") }
+        ) {
             UnicodeFontEngine.smallCaps(it)
         },
-        hindiStyle("hindi_gulab_guldasta", "गुलदस्ता • Floral Hindi", "🌺❀ ", " ❀🌺", calligraphyPresetId = "tillana", badge = "FLORAL") {
+        hindiStyle(
+            id = "hindi_gulab_guldasta",
+            name = "गुलदस्ता • Floral Hindi",
+            prefix = "🌺❀ ",
+            suffix = " ❀🌺",
+            calligraphyPresetId = "tillana",
+            badge = "FLORAL",
+            hindiTransform = { UnicodeFontEngine.hindiWordWrap(it, "✿", "✿") }
+        ) {
             UnicodeFontEngine.curvyCute(it)
         },
-        hindiStyle("hindi_bansuri_sur", "बांसुरी सुर • Bansuri Melody", "🪈♪ ", " ♪🪈", calligraphyPresetId = "amita", badge = "SUR") {
+        hindiStyle(
+            id = "hindi_bansuri_sur",
+            name = "बांसुरी सुर • Bansuri Melody",
+            prefix = "🪈♪ ",
+            suffix = " ♪🪈",
+            calligraphyPresetId = "amita",
+            badge = "SUR",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "♪") }
+        ) {
             UnicodeFontEngine.scriptCursive(it)
         },
-        hindiStyle("hindi_trishul_tejas", "देवभूमि • Devbhoomi Mantra", "🔱॥ ", " ॥🔱", calligraphyPresetId = "yatra_one", badge = "TEJAS") {
+        hindiStyle(
+            id = "hindi_trishul_tejas",
+            name = "देवभूमि • Devbhoomi Mantra",
+            prefix = "🔱॥ ",
+            suffix = " ॥🔱",
+            calligraphyPresetId = "yatra_one",
+            badge = "TEJAS",
+            isPro = true,
+            proCost = 5,
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "⚡") }
+        ) {
             UnicodeFontEngine.boldFraktur(it)
         },
-        hindiStyle("hindi_rangoli_utsav", "रंगोली • Rangoli Utsav", "❈✺ ", " ✺❈", calligraphyPresetId = "tillana", badge = "ART") {
+        hindiStyle(
+            id = "hindi_rangoli_utsav",
+            name = "रंगोली • Rangoli Utsav",
+            prefix = "❈✺ ",
+            suffix = " ✺❈",
+            calligraphyPresetId = "tillana",
+            badge = "ART",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaWrap(it, "〔", "〕") }
+        ) {
             UnicodeFontEngine.doubleStruck(it)
         },
-        hindiStyle("hindi_prem_patra", "प्रेम पत्र • Prem Patra", "💌❦ ", " ❦💌", calligraphyPresetId = "kalam", badge = "LOVE") {
+        hindiStyle(
+            id = "hindi_prem_patra",
+            name = "प्रेम पत्र • Prem Patra",
+            prefix = "💌❦ ",
+            suffix = " ❦💌",
+            calligraphyPresetId = "kalam",
+            badge = "LOVE",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "♡") }
+        ) {
             UnicodeFontEngine.boldScript(it)
         },
-        hindiStyle("hindi_nakshatra_star", "नक्षत्र • Nakshatra Glow", "⋆｡°✦ ", " ✦°｡⋆", calligraphyPresetId = "gotu", badge = "STAR") {
+        hindiStyle(
+            id = "hindi_nakshatra_star",
+            name = "नक्षत्र • Nakshatra Glow",
+            prefix = "⋆｡°✦ ",
+            suffix = " ✦°｡⋆",
+            calligraphyPresetId = "gotu",
+            badge = "STAR",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "★") }
+        ) {
             UnicodeFontEngine.smallCaps(it)
         },
-        hindiStyle("hindi_surya_radiance", "सूर्य तेज • Surya Radiant", "☀️❖ ", " ❖☀️", calligraphyPresetId = "rozha_one", badge = "SOLAR") {
+        hindiStyle(
+            id = "hindi_surya_radiance",
+            name = "सूर्य तेज • Surya Radiant",
+            prefix = "☀️❖ ",
+            suffix = " ❖☀️",
+            calligraphyPresetId = "rozha_one",
+            badge = "SOLAR",
+            isPro = true,
+            proCost = 5,
+            hindiTransform = { UnicodeFontEngine.hindiWordWrap(it, "❖", "❖") }
+        ) {
             UnicodeFontEngine.serifBoldItalic(it)
         },
-        hindiStyle("hindi_mehfil_shayar", "महफ़िल • Mehfil Quote", "🎶❝ ", " ❞🎶", calligraphyPresetId = "amita", badge = "GHAZAL") {
+        hindiStyle(
+            id = "hindi_mehfil_shayar",
+            name = "महफ़िल • Mehfil Quote",
+            prefix = "🎶❝ ",
+            suffix = " ❞🎶",
+            calligraphyPresetId = "amita",
+            badge = "GHAZAL",
+            hindiTransform = { UnicodeFontEngine.whatsappBoldItalic(it) }
+        ) {
             UnicodeFontEngine.serifItalic(it)
         },
-        hindiStyle("hindi_shabd_danda", "शब्द सागर • Shabd Sagar", "📜॰ ", " ।📜", calligraphyPresetId = "kalam", badge = "CLASSIC") {
+        hindiStyle(
+            id = "hindi_shabd_danda",
+            name = "शब्द सागर • Shabd Sagar",
+            prefix = "📜॰ ",
+            suffix = " ।📜",
+            calligraphyPresetId = "kalam",
+            badge = "CLASSIC",
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "-") }
+        ) {
             UnicodeFontEngine.serifBold(it)
         },
-        hindiStyle("hindi_desi_taaj", "देसी ताज • Desi Crown", "👑꧁ ", " ꧂👑", calligraphyPresetId = "yatra_one", badge = "KING") {
+        hindiStyle(
+            id = "hindi_desi_taaj",
+            name = "देसी ताज • Desi Crown",
+            prefix = "👑꧁ ",
+            suffix = " ꧂👑",
+            calligraphyPresetId = "yatra_one",
+            badge = "KING",
+            isPro = true,
+            proCost = 6,
+            hindiTransform = { UnicodeFontEngine.hindiWordWrap(it, "👑", "") }
+        ) {
             UnicodeFontEngine.sansBold(it)
         },
-        hindiStyle("hindi_kalamkari_box", "कलमकारी • Kalamkari Frame", "╭━━━✦ ॐ ✦━━━╮\n  ", "\n╰━━━✦ ॐ ✦━━━╯", calligraphyPresetId = "kalam", badge = "FRAME") {
+        hindiStyle(
+            id = "hindi_kalamkari_box",
+            name = "कलमकारी • Kalamkari Frame",
+            prefix = "╭━━━✦ ॐ ✦━━━╮\n  ",
+            suffix = "\n╰━━━✦ ॐ ✦━━━╯",
+            calligraphyPresetId = "kalam",
+            badge = "FRAME",
+            isPro = true,
+            proCost = 8,
+            hindiTransform = { UnicodeFontEngine.hindiAksharaInterleave(it, "•") }
+        ) {
             UnicodeFontEngine.boldScript(it)
         },
-        hindiStyle("hindi_darbar_banner", "शाही दरबार • Darbar Box", "╔═══❖•° ", " °•❖═══╗", calligraphyPresetId = "gotu", badge = "PRO") {
+        hindiStyle(
+            id = "hindi_darbar_banner",
+            name = "शाही दरबार • Darbar Box",
+            prefix = "╔═══❖•° ",
+            suffix = " °•❖═══╗",
+            calligraphyPresetId = "gotu",
+            badge = "DARBAR",
+            isPro = true,
+            proCost = 7,
+            hindiTransform = { UnicodeFontEngine.hindiWordWrap(it, "『", "』") }
+        ) {
             UnicodeFontEngine.sansBoldItalic(it)
+        },
+        hindiStyle(
+            id = "hindi_wa_bold_clean",
+            name = "व्हाट्सएप बोल्ड • WA Hindi Bold",
+            prefix = "",
+            suffix = "",
+            calligraphyPresetId = "gotu",
+            trending = true,
+            badge = "WA PURE",
+            hindiTransform = { UnicodeFontEngine.whatsappBold(it) }
+        ) {
+            it
+        },
+        hindiStyle(
+            id = "hindi_wa_italic_clean",
+            name = "व्हाट्सएप इटैलिक • WA Hindi Italic",
+            prefix = "",
+            suffix = "",
+            calligraphyPresetId = "amita",
+            badge = "WA PURE",
+            hindiTransform = { UnicodeFontEngine.whatsappItalic(it) }
+        ) {
+            it
         }
     )
 

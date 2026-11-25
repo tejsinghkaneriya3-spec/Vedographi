@@ -19,8 +19,18 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isSignedIn() &&
+             request.auth.token.email_verified == true &&
+             request.auth.token.email == 'tejsinghkaneriya3@gmail.com';
+    }
+
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidReferralCode(code) {
+      return code is string && code.matches('^[A-Z0-9]{6,12}$');
     }
 
     function isValidStringList(listVal, maxSize) {
@@ -37,7 +47,13 @@ service cloud.firestore {
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120)) &&
              data.darkTheme is bool &&
              isValidStringList(data.favoriteFontIds, 300) &&
-             isValidStringList(data.recentFontIds, 30);
+             isValidStringList(data.recentFontIds, 30) &&
+             (!('pointsBalance' in data) || (data.pointsBalance is int && data.pointsBalance >= 0 && data.pointsBalance <= 1000000)) &&
+             (!('unlockedProFontIds' in data) || isValidStringList(data.unlockedProFontIds, 150)) &&
+             (!('referralCode' in data) || isValidReferralCode(data.referralCode)) &&
+             (!('referredByCode' in data) || isValidReferralCode(data.referredByCode)) &&
+             (!('referralCount' in data) || (data.referralCount is int && data.referralCount >= 0 && data.referralCount <= 100000)) &&
+             (!('adsWatchedCount' in data) || (data.adsWatchedCount is int && data.adsWatchedCount >= 0 && data.adsWatchedCount <= 1000000));
     }
 
     function isValidCreation(data, userId) {
@@ -55,7 +71,38 @@ service cloud.firestore {
              data.kind in ['BIO', 'USERNAME', 'DECORATED', 'NAME', 'STATUS', 'OCCASION'];
     }
 
-    // Per-user profile, favorite font IDs, recent font IDs, and theme sync
+    function isValidCustomFont(data, userId) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.userId.size() <= 128 &&
+             data.name is string &&
+             data.name.size() >= 1 &&
+             data.name.size() <= 64 &&
+             data.charMapEncoded is string &&
+             data.charMapEncoded.size() <= 4000 &&
+             data.prefix is string &&
+             data.prefix.size() <= 48 &&
+             data.suffix is string &&
+             data.suffix.size() <= 48 &&
+             data.letterJoiner is string &&
+             data.letterJoiner.size() <= 12;
+    }
+
+    function isValidMonetizationConfig(data) {
+      return data.keys().hasAll(['adsEnabled', 'bannerAdUnitId', 'rewardedAdUnitId', 'adRewardPoints', 'referralBonusPoints', 'announcementBanner', 'updatedBy', 'updatedAt']) &&
+             data.keys().hasOnly(['adsEnabled', 'bannerAdUnitId', 'rewardedAdUnitId', 'adRewardPoints', 'referralBonusPoints', 'announcementBanner', 'updatedBy', 'updatedAt']) &&
+             data.adsEnabled is bool &&
+             data.bannerAdUnitId is string && data.bannerAdUnitId.size() <= 100 &&
+             data.rewardedAdUnitId is string && data.rewardedAdUnitId.size() <= 100 &&
+             data.adRewardPoints is int && data.adRewardPoints >= 1 && data.adRewardPoints <= 100 &&
+             data.referralBonusPoints is int && data.referralBonusPoints >= 1 && data.referralBonusPoints <= 50 &&
+             data.announcementBanner is string && data.announcementBanner.size() <= 240 &&
+             data.updatedBy is string && data.updatedBy == 'tejsinghkaneriya3@gmail.com' &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // Per-user profile, points wallet, referral code, favorites, recents, and theme sync
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
       allow list: if false;
@@ -64,7 +111,11 @@ service cloud.firestore {
                        isValidId(userId) &&
                        request.auth.uid == userId &&
                        incoming().keys().hasAll(['userId', 'darkTheme', 'favoriteFontIds', 'recentFontIds', 'createdAt', 'updatedAt']) &&
-                       incoming().keys().hasOnly(['userId', 'displayName', 'darkTheme', 'favoriteFontIds', 'recentFontIds', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'darkTheme', 'favoriteFontIds', 'recentFontIds',
+                         'pointsBalance', 'unlockedProFontIds', 'referralCode', 'referredByCode',
+                         'referralCount', 'adsWatchedCount', 'createdAt', 'updatedAt'
+                       ]) &&
                        incoming().createdAt is timestamp &&
                        incoming().createdAt <= request.time &&
                        incoming().updatedAt is timestamp &&
@@ -79,13 +130,11 @@ service cloud.firestore {
                        incoming().updatedAt is timestamp &&
                        incoming().updatedAt <= request.time &&
                        isValidUserProfile(incoming(), userId) &&
-                       (
-                         incoming().diff(existing()).affectedKeys().hasOnly(['favoriteFontIds', 'updatedAt']) ||
-                         incoming().diff(existing()).affectedKeys().hasOnly(['recentFontIds', 'updatedAt']) ||
-                         incoming().diff(existing()).affectedKeys().hasOnly(['darkTheme', 'updatedAt']) ||
-                         incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'darkTheme', 'updatedAt']) ||
-                         incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'darkTheme', 'favoriteFontIds', 'recentFontIds', 'updatedAt'])
-                       );
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'darkTheme', 'favoriteFontIds', 'recentFontIds',
+                         'pointsBalance', 'unlockedProFontIds', 'referralCode', 'referredByCode',
+                         'adsWatchedCount', 'updatedAt'
+                       ]);
 
       allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
 
@@ -119,6 +168,91 @@ service cloud.firestore {
 
         allow delete: if isSignedIn() && isValidId(userId) && isValidId(creationId) && request.auth.uid == userId;
       }
+
+      // Per-user Custom Style Studio fonts
+      match /custom_fonts/{fontId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(fontId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(fontId) &&
+                         request.auth.uid == userId &&
+                         incoming().keys().hasAll(['userId', 'name', 'charMapEncoded', 'prefix', 'suffix', 'letterJoiner', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'charMapEncoded', 'prefix', 'suffix', 'letterJoiner', 'createdAt', 'updatedAt']) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidCustomFont(incoming(), userId);
+
+        allow update: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(fontId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidCustomFont(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'charMapEncoded', 'prefix', 'suffix', 'letterJoiner', 'updatedAt']);
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(fontId) && request.auth.uid == userId;
+      }
+    }
+
+    // Referral codes lookup (get-only for signed-in users; list disabled to prevent scraping)
+    match /referral_codes/{code} {
+      allow get: if isSignedIn() && isValidReferralCode(code);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidReferralCode(code) &&
+                       incoming().keys().hasAll(['code', 'ownerUid', 'createdAt']) &&
+                       incoming().keys().hasOnly(['code', 'ownerUid', 'ownerName', 'createdAt']) &&
+                       incoming().code == code &&
+                       incoming().ownerUid == request.auth.uid &&
+                       (!('ownerName' in incoming()) || (incoming().ownerName is string && incoming().ownerName.size() <= 120)) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time;
+
+      allow update: if false;
+      allow delete: if isSignedIn() && existing().ownerUid == request.auth.uid;
+    }
+
+    // One-time referral claims keyed by claimer UID
+    match /referral_claims/{claimId} {
+      allow get: if isSignedIn() && isValidId(claimId) && request.auth.uid == claimId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(claimId) &&
+                       request.auth.uid == claimId &&
+                       incoming().keys().hasAll(['claimerUid', 'code', 'referrerUid', 'bonusPoints', 'createdAt']) &&
+                       incoming().keys().hasOnly(['claimerUid', 'code', 'referrerUid', 'bonusPoints', 'createdAt']) &&
+                       incoming().claimerUid == request.auth.uid &&
+                       isValidReferralCode(incoming().code) &&
+                       incoming().referrerUid is string &&
+                       incoming().referrerUid != request.auth.uid &&
+                       incoming().bonusPoints is int &&
+                       incoming().bonusPoints >= 1 &&
+                       incoming().bonusPoints <= 50 &&
+                       exists(/databases/$(database)/documents/referral_codes/$(incoming().code)) &&
+                       get(/databases/$(database)/documents/referral_codes/$(incoming().code)).data.ownerUid == incoming().referrerUid &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time;
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(claimId) && request.auth.uid == claimId;
+    }
+
+    // App-wide non-PII AdMob & Reward config: readable on get('monetization'), writable ONLY by verified Admin email
+    match /app_config/{configId} {
+      allow get: if configId == 'monetization';
+      allow list: if false;
+      allow create, update, delete: if isAdmin() &&
+                                       configId == 'monetization' &&
+                                       (request.method == 'delete' || isValidMonetizationConfig(incoming()));
     }
   }
 }

@@ -4,15 +4,21 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.auth.DeleteAuthAccountResult
+import com.example.data.CloudCustomFont
 import com.example.data.CloudSavedCreation
 import com.example.data.CloudSyncGateway
 import com.example.data.CloudUiState
 import com.example.data.CloudUserProfile
 import com.example.data.PreferencesRepository
+import com.example.domain.AdminConfig
+import com.example.domain.AppMonetizationConfig
 import com.example.domain.BioCategory
 import com.example.domain.BioPlatform
 import com.example.domain.CachedEntrySource
 import com.example.domain.CachedStyleEntry
+import com.example.domain.CustomFontDefinition
+import com.example.domain.CustomStarterAlphabet
+import com.example.domain.CustomStylePresets
 import com.example.domain.DecorationTemplate
 import com.example.domain.FontCatalog
 import com.example.domain.FontCategory
@@ -54,11 +60,18 @@ sealed interface AccountDeletionState {
     data object Completed : AccountDeletionState
 }
 
+sealed interface UnlockProResult {
+    data class Unlocked(val spec: FontStyleSpec, val newBalance: Int) : UnlockProResult
+    data class InsufficientPoints(val spec: FontStyleSpec, val currentBalance: Int, val requiredCost: Int) : UnlockProResult
+    data class AlreadyUnlocked(val spec: FontStyleSpec) : UnlockProResult
+}
+
 data class FontPreviewItem(
     val spec: FontStyleSpec,
     val previewText: String,
     val isFavorite: Boolean,
-    val isRecentlyCopied: Boolean
+    val isRecentlyCopied: Boolean,
+    val isUnlocked: Boolean = true
 )
 
 data class BatchCopyVariation(
@@ -80,10 +93,12 @@ class VedographiViewModel(
     private val cloudRepo: CloudSyncGateway? = null,
     private val currentUserId: String? = null,
     private val userDisplayName: String? = null,
+    private val userEmail: String? = null,
     networkOnlineFlow: Flow<Boolean> = flowOf(true)
 ) : ViewModel() {
 
     val isGuest: Boolean = currentUserId.isNullOrBlank() || cloudRepo == null
+    val isAdmin: Boolean = AdminConfig.isAdminUser(userEmail, isGuest)
 
     private val _cloudSyncError = MutableStateFlow<String?>(null)
     val cloudSyncError: StateFlow<String?> = _cloudSyncError.asStateFlow()
@@ -106,6 +121,8 @@ class VedographiViewModel(
 
     private val initialSyncCompleted = MutableStateFlow(isGuest)
     private var draftSaveJob: Job? = null
+    @Volatile
+    private var lastLocalWalletMutationMs: Long = 0L
 
     private val cloudProfileState: StateFlow<CloudUiState<CloudUserProfile?>> =
         if (!isGuest && cloudRepo != null && !currentUserId.isNullOrBlank()) {
@@ -141,6 +158,37 @@ class VedographiViewModel(
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), CloudUiState.Loading)
         } else {
             MutableStateFlow<CloudUiState<List<CloudSavedCreation>>>(CloudUiState.Loading).asStateFlow()
+        }
+
+    private val cloudCustomFontsState: StateFlow<CloudUiState<List<CloudCustomFont>>> =
+        if (!isGuest && cloudRepo != null && !currentUserId.isNullOrBlank()) {
+            cloudRepo.observeCustomFonts(currentUserId)
+                .map<List<CloudCustomFont>, CloudUiState<List<CloudCustomFont>>> { CloudUiState.Success(it) }
+                .catch { error ->
+                    val firestoreError = generateSequence(error) { it.cause }
+                        .filterIsInstance<FirebaseFirestoreException>()
+                        .firstOrNull()
+                    if (firestoreError == null && error is CancellationException) throw error
+                    Log.w(TAG, "Error observing custom fonts", error)
+                    emit(CloudUiState.Error(error.localizedMessage ?: "Custom font sync unavailable"))
+                }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), CloudUiState.Loading)
+        } else {
+            MutableStateFlow<CloudUiState<List<CloudCustomFont>>>(CloudUiState.Loading).asStateFlow()
+        }
+
+    val monetizationConfig: StateFlow<AppMonetizationConfig> =
+        if (cloudRepo != null) {
+            combine(
+                isOnline,
+                repo.cachedMonetizationConfig,
+                cloudRepo.observeMonetizationConfig().catch { emit(AppMonetizationConfig()) }
+            ) { online, cached, remote ->
+                if (online) remote else cached
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), AppMonetizationConfig())
+        } else {
+            repo.cachedMonetizationConfig
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), AppMonetizationConfig())
         }
 
     val isCloudSynced: StateFlow<Boolean> = combine(isOnline, cloudProfileState, cloudCreationsState) { online, p, c ->
@@ -180,6 +228,43 @@ class VedographiViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
 
+    val pointsBalance: StateFlow<Int> = repo.pointsBalance
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    val unlockedProFontIds: StateFlow<Set<String>> = repo.unlockedProFontIds
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    val customFonts: StateFlow<List<CustomFontDefinition>> = combine(
+        isOnline,
+        repo.customFonts,
+        cloudCustomFontsState
+    ) { online, localList, cloudState ->
+        when {
+            !isGuest && online && cloudState is CloudUiState.Success -> {
+                val cloudMapped = cloudState.data.map { it.toDomain() }
+                val cloudIds = cloudMapped.map { it.id }.toSet()
+                val localOnly = localList.filter { it.id !in cloudIds }
+                localOnly + cloudMapped
+            }
+            else -> localList
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+
+    val myReferralCode: StateFlow<String?> = repo.myReferralCode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
+
+    val redeemedReferralCode: StateFlow<String?> = repo.redeemedReferralCode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
+
+    val referralCount: StateFlow<Int> = repo.referralCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), 0)
+
+    val adsWatchedCount: StateFlow<Int> = repo.adsWatchedCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), 0)
+
+    val quickGuideDismissed: StateFlow<Boolean> = repo.quickGuideDismissed
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
+
     val savedCreations: StateFlow<List<SavedCreation>> = combine(isOnline, repo.savedCreations, cloudCreationsState) { online, localList, cloudState ->
         when {
             !isGuest && online && cloudState is CloudUiState.Success -> {
@@ -208,6 +293,8 @@ class VedographiViewModel(
             hydrateDraftsFromDataStore()
             if (!isGuest && isOnline.value) {
                 syncLocalBackupToCloud(showErrorOnFailure = false)
+            } else {
+                ensureLocalGuestReferralCode()
             }
             initialSyncCompleted.value = true
         }
@@ -219,10 +306,21 @@ class VedographiViewModel(
                     if (synced && !backingUp) (state as? CloudUiState.Success)?.data else null
                 }.collect { profile ->
                     if (profile != null) {
+                        val walletSettled = (System.currentTimeMillis() - lastLocalWalletMutationMs) > 2500L
+                        val localUnlocked = repo.unlockedProFontIds.first()
+                        val mergedUnlocked = localUnlocked + profile.unlockedProFontIds.toSet()
+                        val localAds = repo.adsWatchedCount.first()
+                        val localRefs = repo.referralCount.first()
                         repo.cacheCloudProfile(
                             darkTheme = profile.darkTheme,
                             favoriteIds = profile.favoriteFontIds.toSet(),
-                            recentIds = profile.recentFontIds
+                            recentIds = profile.recentFontIds,
+                            pointsBalance = if (walletSettled) profile.pointsBalance.toInt() else null,
+                            unlockedProIds = if (walletSettled) mergedUnlocked else null,
+                            referralCode = profile.referralCode,
+                            referredByCode = profile.referredByCode,
+                            referralCount = maxOf(localRefs, profile.referralCount.toInt()),
+                            adsWatchedCount = maxOf(localAds, profile.adsWatchedCount.toInt())
                         )
                     }
                 }
@@ -248,6 +346,24 @@ class VedographiViewModel(
                 }
             }
 
+            // Read-through cache: mirror cloud custom fonts into DataStore
+            viewModelScope.launch {
+                combine(initialSyncCompleted, _isBackingUp, cloudCustomFontsState) { synced, backingUp, state ->
+                    if (synced && !backingUp) (state as? CloudUiState.Success)?.data else null
+                }.collect { list ->
+                    if (list != null) {
+                        repo.cacheCustomFonts(list.map { it.toDomain() })
+                    }
+                }
+            }
+
+            // Cache latest remote monetization config for offline use
+            viewModelScope.launch {
+                monetizationConfig.collect { config ->
+                    repo.cacheMonetizationConfig(config)
+                }
+            }
+
             // Auto-sync offline changes when internet connection comes back
             viewModelScope.launch {
                 var previouslyOnline = isOnline.value
@@ -258,6 +374,14 @@ class VedographiViewModel(
                     previouslyOnline = nowOnline
                 }
             }
+        }
+    }
+
+    private suspend fun ensureLocalGuestReferralCode() {
+        val existing = repo.myReferralCode.first()
+        if (existing.isNullOrBlank()) {
+            val suffix = UUID.randomUUID().toString().replace("-", "").take(4).uppercase()
+            repo.setMyReferralCode("VEDO$suffix")
         }
     }
 
@@ -386,12 +510,19 @@ class VedographiViewModel(
             val localFavs = repo.favoriteFontIds.first()
             val localRecents = repo.recentFontIds.first()
             val localCreations = repo.savedCreations.first()
+            val localPoints = repo.pointsBalance.first()
+            val localUnlocked = repo.unlockedProFontIds.first()
+            val localAdsWatched = repo.adsWatchedCount.first()
+            val localCustomFonts = repo.customFonts.first()
 
             val ensureResult = cloud.ensureUserProfile(
                 displayName = userDisplayName,
                 darkTheme = localDark,
                 initialFavorites = localFavs,
-                initialRecents = localRecents
+                initialRecents = localRecents,
+                initialPoints = localPoints,
+                initialUnlockedProIds = localUnlocked,
+                initialAdsWatched = localAdsWatched
             )
             if (ensureResult.isFailure) {
                 val msg = ensureResult.exceptionOrNull()?.localizedMessage ?: "Cloud backup failed"
@@ -404,11 +535,23 @@ class VedographiViewModel(
                 repo.cacheCloudProfile(
                     darkTheme = mergedProfile.darkTheme,
                     favoriteIds = mergedProfile.favoriteFontIds.toSet(),
-                    recentIds = mergedProfile.recentFontIds
+                    recentIds = mergedProfile.recentFontIds,
+                    pointsBalance = maxOf(localPoints, mergedProfile.pointsBalance.toInt()),
+                    unlockedProIds = localUnlocked + mergedProfile.unlockedProFontIds.toSet(),
+                    referralCode = mergedProfile.referralCode,
+                    referredByCode = mergedProfile.referredByCode,
+                    referralCount = mergedProfile.referralCount.toInt(),
+                    adsWatchedCount = maxOf(localAdsWatched, mergedProfile.adsWatchedCount.toInt())
                 )
             }
 
-            // Fetch existing cloud creations directly rather than reading uncollected Loading state
+            // Ensure a persistent referral code exists for signed-in user
+            if (mergedProfile?.referralCode.isNullOrBlank()) {
+                cloud.ensureReferralCode(userDisplayName).getOrNull()?.let { code ->
+                    repo.setMyReferralCode(code)
+                }
+            }
+
             val cloudCreationsResult = cloud.fetchCreationsOnce(uid)
             val existingCloudCreations = cloudCreationsResult.getOrNull()
                 ?: (cloudCreationsState.value as? CloudUiState.Success)?.data.orEmpty()
@@ -430,10 +573,19 @@ class VedographiViewModel(
                     if (res.isSuccess) uploadedCount++
                 }
             }
+
+            val existingCloudFonts = cloud.fetchCustomFontsOnce(uid).getOrNull().orEmpty()
+            val existingCloudFontIds = existingCloudFonts.map { it.id }.toSet()
+            localCustomFonts.forEach { localFont ->
+                if (localFont.id !in existingCloudFontIds) {
+                    cloud.saveCustomFont(localFont)
+                }
+            }
+
             if (uploadedCount > 0) {
                 "Backed up $uploadedCount local creation(s) & profile to cloud!"
             } else {
-                "All favorites, recents & studio projects backed up to cloud!"
+                "All favorites, wallet points, custom fonts & projects backed up!"
             }
         } finally {
             _isBackingUp.value = false
@@ -454,6 +606,9 @@ class VedographiViewModel(
     private val _selectedCategory = MutableStateFlow(FontCategory.ALL)
     val selectedCategory: StateFlow<FontCategory> = _selectedCategory.asStateFlow()
 
+    private val _waFbSafeOnly = MutableStateFlow(false)
+    val waFbSafeOnly: StateFlow<Boolean> = _waFbSafeOnly.asStateFlow()
+
     private val _selectedCalligraphyPreset = MutableStateFlow(com.example.ui.theme.HindiCalligraphyPreset.KALAM)
     val selectedCalligraphyPreset: StateFlow<com.example.ui.theme.HindiCalligraphyPreset> =
         _selectedCalligraphyPreset.asStateFlow()
@@ -471,6 +626,14 @@ class VedographiViewModel(
         .map { UnicodeFontEngine.containsHindi(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
 
+    val allAvailableStyles: StateFlow<List<FontStyleSpec>> = customFonts
+        .map { list -> list.map { it.toFontStyleSpec() } + FontCatalog.allStyles }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, FontCatalog.allStyles)
+
+    fun findAnyStyleById(id: String): FontStyleSpec? {
+        return allAvailableStyles.value.firstOrNull { it.id == id } ?: FontCatalog.findById(id)
+    }
+
     fun selectCalligraphyPreset(preset: com.example.ui.theme.HindiCalligraphyPreset) {
         _selectedCalligraphyPreset.value = preset
     }
@@ -478,10 +641,12 @@ class VedographiViewModel(
     val trendingFontItems: StateFlow<List<FontPreviewItem>> = combine(
         _inputText,
         favoriteFontIds,
-        _copiedFeedbackId
-    ) { rawText, favs, copiedId ->
+        _copiedFeedbackId,
+        unlockedProFontIds,
+        _waFbSafeOnly
+    ) { rawText, favs, copiedId, unlockedPro, waFbOnly ->
         FontCatalog.allStyles
-            .filter { it.isTrending }
+            .filter { it.isTrending && (!waFbOnly || it.isWaFbSafe) }
             .map { spec ->
                 val effective = if (rawText.isEmpty() && spec.category == FontCategory.HINDI_CALLIGRAPHY) {
                     "हर शब्द • VEDOGRAPHi"
@@ -492,12 +657,13 @@ class VedographiViewModel(
                     spec = spec,
                     previewText = spec.transform(effective),
                     isFavorite = spec.id in favs,
-                    isRecentlyCopied = copiedId == spec.id
+                    isRecentlyCopied = copiedId == spec.id,
+                    isUnlocked = !spec.isPro || spec.id in unlockedPro
                 )
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
 
-    private fun matchesFontQuery(spec: com.example.domain.FontStyleSpec, query: String): Boolean {
+    private fun matchesFontQuery(spec: FontStyleSpec, query: String): Boolean {
         val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return true
         val searchableFields = buildString {
@@ -510,6 +676,15 @@ class VedographiViewModel(
                 append(' ')
                 append(it.lowercase())
             }
+            if (spec.isWaFbSafe) {
+                append(" whatsapp facebook wa fb")
+            }
+            if (spec.isPro) {
+                append(" pro premium")
+            }
+            if (spec.isCustom) {
+                append(" custom studio")
+            }
             spec.calligraphyPresetId?.let {
                 append(' ')
                 append(it.lowercase().replace('_', ' '))
@@ -520,8 +695,10 @@ class VedographiViewModel(
 
     val isSearchExpandedAcrossAll: StateFlow<Boolean> = combine(
         _searchQuery,
-        _selectedCategory
-    ) { rawQuery, category ->
+        _selectedCategory,
+        allAvailableStyles,
+        _waFbSafeOnly
+    ) { rawQuery, category, allStyles, waFbOnly ->
         val query = rawQuery.trim().lowercase()
         if (query.isEmpty() ||
             category == FontCategory.ALL ||
@@ -530,12 +707,15 @@ class VedographiViewModel(
         ) {
             false
         } else {
+            val pool = if (waFbOnly) allStyles.filter { it.isWaFbSafe } else allStyles
             val categoryBase = when (category) {
-                FontCategory.TRENDING -> FontCatalog.allStyles.filter { it.isTrending }
-                else -> FontCatalog.allStyles.filter { it.category == category }
+                FontCategory.TRENDING -> pool.filter { it.isTrending }
+                FontCategory.PRO_FONTS -> pool.filter { it.isPro }
+                FontCategory.MY_CUSTOM -> pool.filter { it.isCustom }
+                else -> pool.filter { it.category == category }
             }
             categoryBase.none { matchesFontQuery(it, query) } &&
-                FontCatalog.allStyles.any { matchesFontQuery(it, query) }
+                pool.any { matchesFontQuery(it, query) }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), false)
 
@@ -545,7 +725,10 @@ class VedographiViewModel(
         _selectedCategory,
         favoriteFontIds,
         recentFontIds,
-        _copiedFeedbackId
+        _copiedFeedbackId,
+        allAvailableStyles,
+        unlockedProFontIds,
+        _waFbSafeOnly
     ) { args ->
         val rawText = args[0] as String
         val query = (args[1] as String).trim().lowercase()
@@ -555,13 +738,22 @@ class VedographiViewModel(
         @Suppress("UNCHECKED_CAST")
         val recents = args[4] as List<String>
         val copiedId = args[5] as String?
+        @Suppress("UNCHECKED_CAST")
+        val allStyles = args[6] as List<FontStyleSpec>
+        @Suppress("UNCHECKED_CAST")
+        val unlockedPro = args[7] as Set<String>
+        val waFbOnly = args[8] as Boolean
+
+        val pool = if (waFbOnly) allStyles.filter { it.isWaFbSafe } else allStyles
 
         val baseList = when (category) {
-            FontCategory.ALL -> FontCatalog.allStyles
-            FontCategory.TRENDING -> FontCatalog.allStyles.filter { it.isTrending }
-            FontCategory.FAVORITES -> FontCatalog.allStyles.filter { it.id in favs }
-            FontCategory.RECENT -> recents.mapNotNull { FontCatalog.findById(it) }
-            else -> FontCatalog.allStyles.filter { it.category == category }
+            FontCategory.ALL -> pool
+            FontCategory.TRENDING -> pool.filter { it.isTrending }
+            FontCategory.PRO_FONTS -> pool.filter { it.isPro }
+            FontCategory.MY_CUSTOM -> pool.filter { it.isCustom }
+            FontCategory.FAVORITES -> pool.filter { it.id in favs }
+            FontCategory.RECENT -> recents.mapNotNull { id -> pool.firstOrNull { it.id == id } }
+            else -> pool.filter { it.category == category }
         }
 
         val searched = if (query.isEmpty()) {
@@ -575,8 +767,7 @@ class VedographiViewModel(
             ) {
                 directMatches
             } else {
-                // Allow searching by another category/style name without getting stuck on an active chip
-                FontCatalog.allStyles.filter { matchesFontQuery(it, query) }
+                pool.filter { matchesFontQuery(it, query) }
             }
         }
 
@@ -590,10 +781,62 @@ class VedographiViewModel(
                 spec = spec,
                 previewText = spec.transform(effective),
                 isFavorite = spec.id in favs,
-                isRecentlyCopied = copiedId == spec.id
+                isRecentlyCopied = copiedId == spec.id,
+                isUnlocked = !spec.isPro || spec.id in unlockedPro
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+
+    // === Custom Style Studio State (Per-character glyph mixer) ===
+    private val _customDraftId = MutableStateFlow<String?>(null)
+    private val _customDraftName = MutableStateFlow("My Royal Style")
+    val customDraftName: StateFlow<String> = _customDraftName.asStateFlow()
+
+    private val _customSamplePreviewInput = MutableStateFlow("Vedographi • हर शब्द")
+    val customSamplePreviewInput: StateFlow<String> = _customSamplePreviewInput.asStateFlow()
+
+    private val _customDraftCharMap = MutableStateFlow(
+        CustomStylePresets.starterAlphabets[1].buildMap()
+    )
+    val customDraftCharMap: StateFlow<Map<Char, String>> = _customDraftCharMap.asStateFlow()
+
+    private val _customDraftPrefix = MutableStateFlow("꧁ ")
+    val customDraftPrefix: StateFlow<String> = _customDraftPrefix.asStateFlow()
+
+    private val _customDraftSuffix = MutableStateFlow(" ꧂")
+    val customDraftSuffix: StateFlow<String> = _customDraftSuffix.asStateFlow()
+
+    private val _customDraftJoiner = MutableStateFlow("")
+    val customDraftJoiner: StateFlow<String> = _customDraftJoiner.asStateFlow()
+
+    private val _customSelectedChar = MutableStateFlow('a')
+    val customSelectedChar: StateFlow<Char> = _customSelectedChar.asStateFlow()
+
+    val customStudioPreviewText: StateFlow<String> = combine(
+        _customDraftName,
+        _customDraftCharMap,
+        _customDraftPrefix,
+        _customDraftSuffix,
+        _customDraftJoiner,
+        _customSamplePreviewInput
+    ) { args ->
+        val name = args[0] as String
+        @Suppress("UNCHECKED_CAST")
+        val charMap = args[1] as Map<Char, String>
+        val prefix = args[2] as String
+        val suffix = args[3] as String
+        val joiner = args[4] as String
+        val sample = args[5] as String
+        val def = CustomFontDefinition(
+            id = "preview",
+            name = name,
+            charMap = charMap,
+            prefix = prefix,
+            suffix = suffix,
+            letterJoiner = joiner
+        )
+        def.transform(sample.ifBlank { "Vedographi" })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), "꧁ 𝐕𝐞𝐝𝐨𝐠𝐫𝐚𝐩𝐡𝐢 • हर शब्द ꧂")
 
     // === Bio & Caption Generator State ===
     private val _selectedBioPlatform = MutableStateFlow(BioPlatform.INSTAGRAM)
@@ -636,7 +879,7 @@ class VedographiViewModel(
         val bullets = args[4] as Boolean
         val platform = args[5] as BioPlatform
 
-        val font = FontCatalog.findById(fontId) ?: StudioGenerators.bioFonts.first()
+        val font = findAnyStyleById(fontId) ?: StudioGenerators.bioFonts.first()
         val divider = StudioGenerators.bioDividers.getOrElse(divIdx) { StudioGenerators.bioDividers.first() }.second
         val base = StudioGenerators.formatBio(
             headline = headline,
@@ -701,7 +944,7 @@ class VedographiViewModel(
         _selectedBorderId,
         _selectedSeparatorId
     ) { text, fontId, wingId, borderId, sepId ->
-        val font = FontCatalog.findById(fontId) ?: FontCatalog.allStyles.first()
+        val font = findAnyStyleById(fontId) ?: FontCatalog.allStyles.first()
         val wing = StudioGenerators.wingPresets.firstOrNull { it.id == wingId } ?: StudioGenerators.wingPresets.first()
         val border = StudioGenerators.borderPresets.firstOrNull { it.id == borderId } ?: StudioGenerators.borderPresets.first()
         val sep = StudioGenerators.separatorPresets.firstOrNull { it.id == sepId } ?: StudioGenerators.separatorPresets.first()
@@ -742,7 +985,7 @@ class VedographiViewModel(
         _nameDesignerWingId,
         _nameDesignerBadge
     ) { name, sub, fontId, wingId, badge ->
-        val font = FontCatalog.findById(fontId) ?: FontCatalog.allStyles.first()
+        val font = findAnyStyleById(fontId) ?: FontCatalog.allStyles.first()
         val wing = StudioGenerators.wingPresets.firstOrNull { it.id == wingId } ?: StudioGenerators.wingPresets.first()
         TextStudioCatalog.formatStylishName(name, sub, font, wing, badge)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), "")
@@ -775,7 +1018,7 @@ class VedographiViewModel(
         val fontId = args[2] as String
         val divIdx = args[3] as Int
         val footer = args[4] as Boolean
-        val font = FontCatalog.findById(fontId) ?: FontCatalog.allStyles.first()
+        val font = findAnyStyleById(fontId) ?: FontCatalog.allStyles.first()
         val divider = StudioGenerators.bioDividers.getOrElse(divIdx) { StudioGenerators.bioDividers.first() }.second
         TextStudioCatalog.formatWhatsAppStatus(header, body, font, divider, footer)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), "")
@@ -796,6 +1039,20 @@ class VedographiViewModel(
         scheduleDraftPersistence()
     }
 
+    fun toggleWaFbSafeFilter() {
+        _waFbSafeOnly.update { !it }
+    }
+
+    fun setWaFbSafeOnly(enabled: Boolean) {
+        _waFbSafeOnly.value = enabled
+    }
+
+    fun dismissQuickGuide() {
+        viewModelScope.launch {
+            repo.setQuickGuideDismissed(true)
+        }
+    }
+
     fun buildCopyAllText(): String {
         return buildCopyAllText(selectedIds = null, includeStyleNames = true)
     }
@@ -804,14 +1061,16 @@ class VedographiViewModel(
         selectedIds: Set<String>?,
         includeStyleNames: Boolean
     ): String {
-        val variations = filteredFontItems.value.map {
-            BatchCopyVariation(
-                id = it.spec.id,
-                styleName = it.spec.name,
-                styledText = it.previewText,
-                isFavorite = it.isFavorite
-            )
-        }
+        val variations = filteredFontItems.value
+            .filter { it.isUnlocked }
+            .map {
+                BatchCopyVariation(
+                    id = it.spec.id,
+                    styleName = it.spec.name,
+                    styledText = it.previewText,
+                    isFavorite = it.isFavorite
+                )
+            }
         return formatBatchCopyText(
             variations = variations,
             selectedIds = selectedIds,
@@ -836,7 +1095,7 @@ class VedographiViewModel(
     }
 
     fun openBatchCopySheetForFonts() {
-        val items = filteredFontItems.value
+        val items = filteredFontItems.value.filter { it.isUnlocked }
         if (items.isEmpty()) return
         val source = _inputText.value.ifBlank { "VEDOGRAPHi" }
         _batchCopySheet.value = BatchCopySheetState(
@@ -906,7 +1165,7 @@ class VedographiViewModel(
     }
 
     fun markFontUsed(fontId: String, styledText: String? = null) {
-        val spec = FontCatalog.findById(fontId)
+        val spec = findAnyStyleById(fontId)
         val rawInput = _inputText.value.ifEmpty {
             if (spec?.category == FontCategory.HINDI_CALLIGRAPHY) "हर शब्द • VEDOGRAPHi" else "VEDOGRAPHi"
         }
@@ -937,6 +1196,253 @@ class VedographiViewModel(
                 _copiedFeedbackId.value = null
             }
         }
+    }
+
+    // === Wallet, AdMob Rewarded Points, Referrals & Pro Unlocks ===
+
+    fun grantAdRewardPoints(
+        amount: Int = monetizationConfig.value.adRewardPoints,
+        onComplete: (Int) -> Unit = {}
+    ) {
+        val safeAmount = amount.coerceIn(1, 100)
+        viewModelScope.launch {
+            lastLocalWalletMutationMs = System.currentTimeMillis()
+            repo.addPoints(delta = safeAmount, incrementAdsWatched = true)
+            val newBalance = repo.pointsBalance.first()
+            val unlocked = repo.unlockedProFontIds.first()
+            val adsCount = repo.adsWatchedCount.first()
+            if (!isGuest && isOnline.value) {
+                cloudRepo?.updateWalletAndProUnlocks(
+                    pointsBalance = newBalance,
+                    unlockedProIds = unlocked,
+                    adsWatchedCount = adsCount
+                )?.onFailure { err ->
+                    _cloudSyncError.value = err.localizedMessage ?: "Points saved locally; cloud sync pending"
+                }
+            }
+            onComplete(newBalance)
+        }
+    }
+
+    fun unlockProFont(spec: FontStyleSpec, onResult: (UnlockProResult) -> Unit) {
+        viewModelScope.launch {
+            val currentUnlocked = repo.unlockedProFontIds.first()
+            if (!spec.isPro || spec.id in currentUnlocked) {
+                onResult(UnlockProResult.AlreadyUnlocked(spec))
+                return@launch
+            }
+            val currentBalance = repo.pointsBalance.first()
+            if (currentBalance < spec.proCost) {
+                onResult(
+                    UnlockProResult.InsufficientPoints(
+                        spec = spec,
+                        currentBalance = currentBalance,
+                        requiredCost = spec.proCost
+                    )
+                )
+                return@launch
+            }
+            lastLocalWalletMutationMs = System.currentTimeMillis()
+            val unlocked = repo.spendPointsAndUnlockProFont(spec.id, spec.proCost)
+            if (unlocked) {
+                val updatedBalance = repo.pointsBalance.first()
+                val updatedSet = repo.unlockedProFontIds.first()
+                val adsCount = repo.adsWatchedCount.first()
+                if (!isGuest && isOnline.value) {
+                    cloudRepo?.updateWalletAndProUnlocks(
+                        pointsBalance = updatedBalance,
+                        unlockedProIds = updatedSet,
+                        adsWatchedCount = adsCount
+                    )?.onFailure { err ->
+                        _cloudSyncError.value = err.localizedMessage ?: "Unlocked locally; cloud sync pending"
+                    }
+                }
+                onResult(UnlockProResult.Unlocked(spec, updatedBalance))
+            } else {
+                onResult(
+                    UnlockProResult.InsufficientPoints(
+                        spec = spec,
+                        currentBalance = repo.pointsBalance.first(),
+                        requiredCost = spec.proCost
+                    )
+                )
+            }
+        }
+    }
+
+    fun ensureReferralCode() {
+        viewModelScope.launch {
+            if (!isGuest && cloudRepo != null && isOnline.value) {
+                cloudRepo.ensureReferralCode(userDisplayName).getOrNull()?.let { code ->
+                    repo.setMyReferralCode(code)
+                }
+            } else {
+                ensureLocalGuestReferralCode()
+            }
+        }
+    }
+
+    fun redeemReferralCode(rawCode: String, onResult: (Result<Int>) -> Unit) {
+        val cleanCode = rawCode.trim().uppercase()
+        viewModelScope.launch {
+            if (repo.redeemedReferralCode.first() != null) {
+                onResult(Result.failure(IllegalStateException("You have already redeemed a referral code.")))
+                return@launch
+            }
+            val ownCode = repo.myReferralCode.first()
+            if (!ownCode.isNullOrBlank() && cleanCode == ownCode) {
+                onResult(Result.failure(IllegalArgumentException("You cannot redeem your own referral code.")))
+                return@launch
+            }
+            if (!cleanCode.matches(Regex("^[A-Z0-9]{6,12}$"))) {
+                onResult(Result.failure(IllegalArgumentException("Enter a valid 6-12 character invite code.")))
+                return@launch
+            }
+
+            val bonus = monetizationConfig.value.referralBonusPoints.coerceAtLeast(2)
+            lastLocalWalletMutationMs = System.currentTimeMillis()
+
+            if (!isGuest && cloudRepo != null && isOnline.value) {
+                val cloudRes = cloudRepo.redeemReferralCode(cleanCode, bonus)
+                cloudRes.fold(
+                    onSuccess = { credited ->
+                        repo.recordRedeemedReferral(cleanCode, credited)
+                        onResult(Result.success(credited))
+                    },
+                    onFailure = { err ->
+                        onResult(Result.failure(err))
+                    }
+                )
+            } else {
+                repo.recordRedeemedReferral(cleanCode, bonus)
+                onResult(Result.success(bonus))
+            }
+        }
+    }
+
+    // === Custom Style Studio Actions ===
+
+    fun updateCustomDraftName(name: String) {
+        _customDraftName.value = name
+    }
+
+    fun updateCustomSamplePreviewInput(sample: String) {
+        _customSamplePreviewInput.value = sample
+    }
+
+    fun selectCustomEditChar(ch: Char) {
+        _customSelectedChar.value = ch
+    }
+
+    fun setCustomCharGlyph(ch: Char, glyph: String) {
+        _customDraftCharMap.update { current ->
+            val mutable = current.toMutableMap()
+            if (glyph.isEmpty() || glyph == ch.toString()) {
+                mutable.remove(ch)
+            } else {
+                mutable[ch] = glyph
+            }
+            mutable
+        }
+    }
+
+    fun applyCustomStarterAlphabet(starter: CustomStarterAlphabet) {
+        _customDraftCharMap.value = starter.buildMap()
+    }
+
+    fun randomizeCustomGlyphMix() {
+        _customDraftCharMap.value = CustomStylePresets.randomizeMix()
+    }
+
+    fun updateCustomDraftPrefix(prefix: String) {
+        _customDraftPrefix.value = prefix
+    }
+
+    fun updateCustomDraftSuffix(suffix: String) {
+        _customDraftSuffix.value = suffix
+    }
+
+    fun updateCustomDraftJoiner(joiner: String) {
+        _customDraftJoiner.value = joiner
+    }
+
+    fun resetCustomFontDraft() {
+        _customDraftId.value = null
+        _customDraftName.value = "My Royal Style"
+        _customDraftCharMap.value = CustomStylePresets.starterAlphabets[1].buildMap()
+        _customDraftPrefix.value = "꧁ "
+        _customDraftSuffix.value = " ꧂"
+        _customDraftJoiner.value = ""
+    }
+
+    fun loadCustomFontIntoEditor(definition: CustomFontDefinition) {
+        _customDraftId.value = definition.id
+        _customDraftName.value = definition.name
+        _customDraftCharMap.value = definition.charMap
+        _customDraftPrefix.value = definition.prefix
+        _customDraftSuffix.value = definition.suffix
+        _customDraftJoiner.value = definition.letterJoiner
+    }
+
+    fun saveCustomFontDefinition(onComplete: (CustomFontDefinition) -> Unit = {}) {
+        viewModelScope.launch {
+            val fontId = _customDraftId.value
+                ?: "custom_${UUID.randomUUID().toString().replace("-", "").take(12)}"
+            val def = CustomFontDefinition(
+                id = fontId,
+                name = _customDraftName.value.trim().ifBlank { "My Custom Style" }.take(64),
+                charMap = _customDraftCharMap.value,
+                prefix = _customDraftPrefix.value,
+                suffix = _customDraftSuffix.value,
+                letterJoiner = _customDraftJoiner.value,
+                createdAtMillis = System.currentTimeMillis()
+            )
+            repo.saveCustomFont(def)
+            if (!isGuest && isOnline.value) {
+                cloudRepo?.saveCustomFont(def)?.onFailure { err ->
+                    _cloudSyncError.value = err.localizedMessage ?: "Saved custom font locally; cloud sync pending"
+                }
+            }
+            _customDraftId.value = null
+            onComplete(def)
+        }
+    }
+
+    fun deleteCustomFontDefinition(fontId: String) {
+        viewModelScope.launch {
+            repo.deleteCustomFont(fontId)
+            if (!isGuest && isOnline.value) {
+                cloudRepo?.deleteCustomFont(fontId)?.onFailure { err ->
+                    _cloudSyncError.value = err.localizedMessage ?: "Failed to delete custom font from cloud"
+                }
+            }
+        }
+    }
+
+    // === Admin Panel Actions (Strict Admin-Only) ===
+
+    fun saveAdminMonetizationConfig(
+        config: AppMonetizationConfig,
+        onResult: (Result<Unit>) -> Unit = {}
+    ) {
+        if (!isAdmin) {
+            onResult(Result.failure(SecurityException("Unauthorized: Admin access only.")))
+            return
+        }
+        viewModelScope.launch {
+            repo.cacheMonetizationConfig(config)
+            if (!isGuest && cloudRepo != null && isOnline.value) {
+                val res = cloudRepo.updateMonetizationConfig(config)
+                onResult(res)
+            } else {
+                onResult(Result.success(Unit))
+            }
+        }
+    }
+
+    fun adminGrantSelfPoints(amount: Int, onComplete: (Int) -> Unit = {}) {
+        if (!isAdmin) return
+        grantAdRewardPoints(amount = amount, onComplete = onComplete)
     }
 
     fun cacheStyleGeneration(
@@ -1226,7 +1732,7 @@ class VedographiViewModel(
         _selectedSeparatorId.value = "space"
         _customFinalOverride.value = null
         _studioSelectedTab.value = 1
-        val font = FontCatalog.findById(occasion.fontId) ?: FontCatalog.allStyles.first()
+        val font = findAnyStyleById(occasion.fontId) ?: FontCatalog.allStyles.first()
         val wing = StudioGenerators.wingPresets.firstOrNull { it.id == occasion.wingId } ?: StudioGenerators.wingPresets.first()
         val border = StudioGenerators.borderPresets.firstOrNull { it.id == occasion.borderId } ?: StudioGenerators.borderPresets.first()
         val sep = StudioGenerators.separatorPresets.first()

@@ -29,16 +29,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CopyAll
+import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.SearchOff
@@ -54,6 +59,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -79,11 +85,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.domain.AppMonetizationConfig
 import com.example.domain.FontCategory
 import com.example.ui.FontPreviewItem
 import com.example.ui.components.CopyFeedbackPreviewBox
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.FontPreviewCard
+import com.example.ui.components.VedographiContentCard
 import com.example.ui.components.VedographiDefaults
 import com.example.ui.components.VedographiHeroCard
 import com.example.ui.components.VedographiPillBadge
@@ -98,6 +106,7 @@ import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.HindiCalligraphyPreset
 import com.example.ui.theme.NeonOrchid
 import com.example.ui.theme.RoyalViolet
+import com.example.util.AdMobBannerBar
 import kotlinx.coroutines.launch
 
 private val QuickSamplePhrases = listOf(
@@ -133,7 +142,20 @@ fun FontsHomeScreen(
     onSelectCalligraphyPreset: (HindiCalligraphyPreset) -> Unit = {},
     onCopyCalligraphyText: (String) -> Unit = {},
     onShareCalligraphyCard: () -> Unit = {},
-    isSearchExpandedAcrossAll: Boolean = false
+    isSearchExpandedAcrossAll: Boolean = false,
+    waFbSafeOnly: Boolean = false,
+    quickGuideDismissed: Boolean = false,
+    pointsBalance: Int = 0,
+    announcementBanner: String = "",
+    adsEnabled: Boolean = true,
+    bannerAdUnitId: String = AppMonetizationConfig.DEFAULT_TEST_BANNER_UNIT_ID,
+    onToggleWaFbSafe: () -> Unit = {},
+    onDismissQuickGuide: () -> Unit = {},
+    onOpenHowToUse: () -> Unit = {},
+    onOpenCreateCustomFont: () -> Unit = {},
+    onOpenEarnPoints: () -> Unit = {},
+    onUnlockProItem: (FontPreviewItem) -> Unit = {},
+    onDeleteCustomFont: (String) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -222,9 +244,120 @@ fun FontsHomeScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 84.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                contentPadding = PaddingValues(top = 10.dp, bottom = 84.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+            // Optional Admin Announcement Banner
+            if (announcementBanner.isNotBlank()) {
+                item(key = "admin_announcement") {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = RoyalViolet.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.6f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Campaign,
+                                contentDescription = null,
+                                tint = NeonOrchid,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = announcementBanner,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Beginner 3-Step Quick Guide (dismissible)
+            if (!quickGuideDismissed && searchQuery.isBlank()) {
+                item(key = "beginner_quick_guide") {
+                    VedographiContentCard(
+                        borderColor = EmeraldSuccess.copy(alpha = 0.55f),
+                        contentPadding = PaddingValues(14.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .testTag("quick_guide_card")
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                    contentDescription = null,
+                                    tint = EmeraldSuccess,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Quick Start • आसान 3 स्टेप्स",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            TextButton(
+                                onClick = onDismissQuickGuide,
+                                modifier = Modifier.testTag("dismiss_quick_guide_btn")
+                            ) {
+                                Text("Got it", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "1. Type text below  •  2. Filter 'WA & FB Safe' or 'Hindi Calligraphy'  •  3. Tap any card to Copy & Paste!",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = onOpenHowToUse,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = VedographiDefaults.outlinedButtonColors(),
+                                border = VedographiDefaults.outlinedButtonBorder(),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .testTag("quick_guide_how_to_use_btn")
+                            ) {
+                                Text("How to Use", style = MaterialTheme.typography.labelMedium)
+                            }
+                            Button(
+                                onClick = onOpenEarnPoints,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = VedographiDefaults.primaryButtonColors(),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .testTag("quick_guide_earn_btn")
+                            ) {
+                                Icon(Icons.Filled.Diamond, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Earn Pro Pts", style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+
             // 1. Large Prominent Text Input Box at the top
             item(key = "input_hero") {
                 VedographiHeroCard(
@@ -645,6 +778,86 @@ fun FontsHomeScreen(
                 }
             }
 
+            // 1C. Quick Filter & Action Strip (WA & FB Safe, Custom Font Studio, Earn Points)
+            item(key = "quick_action_strip") {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item(key = "wa_fb_filter") {
+                        FilterChip(
+                            selected = waFbSafeOnly,
+                            onClick = onToggleWaFbSafe,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.CheckCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = stringResource(R.string.wa_fb_safe_filter),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            },
+                            colors = VedographiDefaults.filterChipColors(),
+                            border = VedographiDefaults.filterChipBorder(waFbSafeOnly),
+                            modifier = Modifier
+                                .height(42.dp)
+                                .testTag("wa_fb_safe_filter_chip")
+                        )
+                    }
+                    item(key = "create_custom_shortcut") {
+                        AssistChip(
+                            onClick = onOpenCreateCustomFont,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "Custom Font Studio",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            },
+                            colors = VedographiDefaults.assistChipColors(),
+                            border = VedographiDefaults.assistChipBorder(),
+                            modifier = Modifier
+                                .height(42.dp)
+                                .testTag("shortcut_custom_font_chip")
+                        )
+                    }
+                    item(key = "earn_points_shortcut") {
+                        AssistChip(
+                            onClick = onOpenEarnPoints,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Diamond,
+                                    contentDescription = null,
+                                    tint = NeonOrchid,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "Earn Pts ($pointsBalance)",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            },
+                            colors = VedographiDefaults.assistChipColors(),
+                            border = VedographiDefaults.assistChipBorder(),
+                            modifier = Modifier
+                                .height(42.dp)
+                                .testTag("shortcut_earn_points_chip")
+                        )
+                    }
+                }
+            }
+
             // 2. Category Chips
             item(key = "category_chips") {
                 LazyRow(
@@ -656,16 +869,35 @@ fun FontsHomeScreen(
                         FilterChip(
                             selected = selected,
                             onClick = { onSelectCategory(category) },
-                            leadingIcon = if (category == FontCategory.HINDI_CALLIGRAPHY) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Filled.Brush,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                            leadingIcon = when (category) {
+                                FontCategory.HINDI_CALLIGRAPHY -> {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Filled.Brush,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
-                            } else {
-                                null
+                                FontCategory.PRO_FONTS -> {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Filled.Diamond,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                FontCategory.MY_CUSTOM -> {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Filled.Tune,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                else -> null
                             },
                             label = {
                                 Text(
@@ -710,7 +942,11 @@ fun FontsHomeScreen(
                                 previewFontFamily = selectedCalligraphyPreset.fontFamily,
                                 onCopy = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onCopyItem(item)
+                                    if (item.isUnlocked) {
+                                        onCopyItem(item)
+                                    } else {
+                                        onUnlockProItem(item)
+                                    }
                                 }
                             )
                         }
@@ -729,6 +965,7 @@ fun FontsHomeScreen(
                     },
                     subtitle = when {
                         isSearchExpandedAcrossAll -> "Showing matches across all categories for \"$searchQuery\""
+                        waFbSafeOnly -> "Filtered to WhatsApp & Facebook 100% compatible styles"
                         isInputEmpty && selectedCategory == FontCategory.HINDI_CALLIGRAPHY ->
                             "Previewing \"हर शब्द • VEDOGRAPHi\" — type Hindi or English above"
                         isInputEmpty -> "Previewing \"VEDOGRAPHi\" — type above to transform live"
@@ -746,6 +983,13 @@ fun FontsHomeScreen(
                 item(key = "empty_state") {
                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                         when {
+                            selectedCategory == FontCategory.MY_CUSTOM && searchQuery.isBlank() -> EmptyStateCard(
+                                title = "No custom fonts created yet",
+                                subtitle = "Create your own unique Unicode alphabet in Custom Style Studio and it will appear right here.",
+                                icon = Icons.Filled.Tune,
+                                actionLabel = "Open Custom Style Studio",
+                                onActionClick = onOpenCreateCustomFont
+                            )
                             selectedCategory == FontCategory.FAVORITES && searchQuery.isBlank() -> EmptyStateCard(
                                 title = stringResource(R.string.empty_favorites_title),
                                 subtitle = stringResource(R.string.empty_favorites_subtitle),
@@ -760,7 +1004,7 @@ fun FontsHomeScreen(
                                 title = stringResource(R.string.empty_search_title),
                                 subtitle = stringResource(R.string.empty_search_subtitle),
                                 icon = Icons.Outlined.SearchOff,
-                                actionLabel = if (searchQuery.isNotBlank() || selectedCategory != FontCategory.ALL) {
+                                actionLabel = if (searchQuery.isNotBlank() || selectedCategory != FontCategory.ALL || waFbSafeOnly) {
                                     "Reset Search & Filters"
                                 } else {
                                     null
@@ -768,6 +1012,7 @@ fun FontsHomeScreen(
                                 onActionClick = {
                                     onSearchChange("")
                                     onSelectCategory(FontCategory.ALL)
+                                    if (waFbSafeOnly) onToggleWaFbSafe()
                                 }
                             )
                         }
@@ -781,6 +1026,12 @@ fun FontsHomeScreen(
                         onToggleFavorite = { onToggleFavorite(item.spec.id) },
                         onShare = { onShareItem(item) },
                         previewFontFamily = selectedCalligraphyPreset.fontFamily,
+                        onUnlockPro = { onUnlockProItem(item) },
+                        onDeleteCustom = if (item.spec.isCustom) {
+                            { onDeleteCustomFont(item.spec.id) }
+                        } else {
+                            null
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
@@ -813,6 +1064,14 @@ fun FontsHomeScreen(
                 )
             }
         }
+        }
+
+        if (adsEnabled) {
+            AdMobBannerBar(
+                adUnitId = bannerAdUnitId,
+                adsEnabled = adsEnabled,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
         }
     }
 }
@@ -898,9 +1157,17 @@ private fun TrendingSpotlightCard(
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = if (item.isRecentlyCopied) "Copied!" else "Tap to copy",
+                text = when {
+                    !item.isUnlocked -> "PRO • ${item.spec.proCost} pts to unlock"
+                    item.isRecentlyCopied -> "Copied!"
+                    else -> "Tap to copy"
+                },
                 style = MaterialTheme.typography.labelSmall,
-                color = if (item.isRecentlyCopied) EmeraldSuccess else MaterialTheme.colorScheme.primary
+                color = when {
+                    !item.isUnlocked -> NeonOrchid
+                    item.isRecentlyCopied -> EmeraldSuccess
+                    else -> MaterialTheme.colorScheme.primary
+                }
             )
         }
     }

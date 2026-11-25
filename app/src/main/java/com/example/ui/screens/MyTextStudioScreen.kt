@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.domain.CachedEntrySource
 import com.example.domain.CachedStyleEntry
+import com.example.domain.CustomFontDefinition
+import com.example.domain.CustomStarterAlphabet
 import com.example.domain.DecorationTemplate
 import com.example.domain.FontCatalog
 import com.example.domain.OccasionCategory
@@ -73,7 +75,8 @@ private val StudioTabLabels = listOf(
     "Name Designer",
     "WA Status",
     "Occasions",
-    "Saved"
+    "Saved",
+    "Custom Font"
 )
 
 @Composable
@@ -150,6 +153,28 @@ fun MyTextStudioScreen(
     onRemoveCachedStyle: (String) -> Unit = {},
     onClearCachedStyles: () -> Unit = {},
     onCopyAllTemplates: ((List<Pair<DecorationTemplate, String>>) -> Unit)? = null,
+    customDraftName: String = "My Royal Style",
+    customSampleInput: String = "Vedographi • हर शब्द",
+    customCharMap: Map<Char, String> = emptyMap(),
+    customPrefix: String = "",
+    customSuffix: String = "",
+    customJoiner: String = "",
+    customSelectedChar: Char = 'a',
+    customLivePreview: String = "Vedographi",
+    savedCustomFonts: List<CustomFontDefinition> = emptyList(),
+    onCustomNameChange: (String) -> Unit = {},
+    onCustomSampleInputChange: (String) -> Unit = {},
+    onCustomSelectChar: (Char) -> Unit = {},
+    onCustomSetCharGlyph: (Char, String) -> Unit = { _, _ -> },
+    onCustomApplyStarter: (CustomStarterAlphabet) -> Unit = {},
+    onCustomRandomize: () -> Unit = {},
+    onCustomSelectPrefix: (String) -> Unit = {},
+    onCustomSelectSuffix: (String) -> Unit = {},
+    onCustomSelectJoiner: (String) -> Unit = {},
+    onCustomResetDraft: () -> Unit = {},
+    onCustomSaveFont: () -> Unit = {},
+    onCustomLoadFont: (CustomFontDefinition) -> Unit = {},
+    onCustomDeleteFont: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -395,7 +420,7 @@ fun MyTextStudioScreen(
                     onShareText(text)
                 }
             )
-            else -> SavedAndRecentTab(
+            5 -> SavedAndRecentTab(
                 savedCreations = savedCreations,
                 favoriteFonts = favoriteFonts,
                 recentFonts = recentFonts,
@@ -417,6 +442,31 @@ fun MyTextStudioScreen(
                 onRestoreCachedEntry = onRestoreCachedEntry,
                 onRemoveCachedStyle = onRemoveCachedStyle,
                 onClearCachedStyles = onClearCachedStyles
+            )
+            else -> CustomStyleStudioTab(
+                draftName = customDraftName,
+                sampleInput = customSampleInput,
+                charMap = customCharMap,
+                prefix = customPrefix,
+                suffix = customSuffix,
+                joiner = customJoiner,
+                selectedChar = customSelectedChar,
+                livePreview = customLivePreview,
+                savedCustomFonts = savedCustomFonts,
+                onNameChange = onCustomNameChange,
+                onSampleInputChange = onCustomSampleInputChange,
+                onSelectChar = onCustomSelectChar,
+                onSetCharGlyph = onCustomSetCharGlyph,
+                onApplyStarterAlphabet = onCustomApplyStarter,
+                onRandomizeMix = onCustomRandomize,
+                onSelectPrefix = onCustomSelectPrefix,
+                onSelectSuffix = onCustomSelectSuffix,
+                onSelectJoiner = onCustomSelectJoiner,
+                onResetDraft = onCustomResetDraft,
+                onSaveCustomFont = onCustomSaveFont,
+                onLoadCustomFont = onCustomLoadFont,
+                onDeleteCustomFont = onCustomDeleteFont,
+                onCopyText = onCopyText
             )
         }
     }

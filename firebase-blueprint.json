@@ -2,111 +2,103 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Synced VEDOGRAPHi user preferences, favorites, and recently used fonts",
+      "description": "Synced VEDOGRAPHi user preferences, points wallet, unlocked Pro fonts, referral info, favorites, and recents",
       "type": "object",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Owner Firebase Auth UID"
-        },
-        "displayName": {
-          "type": "string",
-          "description": "Optional display name"
-        },
-        "darkTheme": {
-          "type": "boolean",
-          "description": "Dark mode UI preference"
-        },
-        "favoriteFontIds": {
-          "type": "array",
-          "description": "List of favorited Unicode font IDs"
-        },
-        "recentFontIds": {
-          "type": "array",
-          "description": "List of recently copied Unicode font IDs"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Creation server timestamp (FieldValue.serverTimestamp())"
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Update server timestamp (FieldValue.serverTimestamp())"
-        }
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID" },
+        "displayName": { "type": "string", "description": "Optional display name" },
+        "darkTheme": { "type": "boolean", "description": "Dark mode UI preference" },
+        "favoriteFontIds": { "type": "array", "description": "List of favorited Unicode font IDs" },
+        "recentFontIds": { "type": "array", "description": "List of recently copied Unicode font IDs" },
+        "pointsBalance": { "type": "integer", "description": "Current reward points balance" },
+        "unlockedProFontIds": { "type": "array", "description": "List of unlocked Pro font IDs" },
+        "referralCode": { "type": "string", "description": "User shareable referral invite code" },
+        "referredByCode": { "type": "string", "description": "Referral code redeemed by this user" },
+        "referralCount": { "type": "integer", "description": "Recorded referrals count" },
+        "adsWatchedCount": { "type": "integer", "description": "Total rewarded ads watched" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "userId",
-        "darkTheme",
-        "favoriteFontIds",
-        "recentFontIds",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["userId", "darkTheme", "favoriteFontIds", "recentFontIds", "createdAt", "updatedAt"]
     },
     "SavedCreation": {
       "title": "SavedCreation",
-      "description": "User-authored Unicode text creation (Bio, Username, Decorated, Name, Status, Occasion)",
+      "description": "User-authored Unicode text creation",
       "type": "object",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Owner Firebase Auth UID"
-        },
-        "title": {
-          "type": "string",
-          "description": "Creation title or category label"
-        },
-        "content": {
-          "type": "string",
-          "description": "Copyable Unicode styled text content"
-        },
-        "kind": {
-          "type": "string",
-          "enum": [
-            "BIO",
-            "USERNAME",
-            "DECORATED",
-            "NAME",
-            "STATUS",
-            "OCCASION"
-          ],
-          "description": "Creation type"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Creation server timestamp (FieldValue.serverTimestamp())"
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Update server timestamp (FieldValue.serverTimestamp())"
-        }
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "kind": { "type": "string", "enum": ["BIO", "USERNAME", "DECORATED", "NAME", "STATUS", "OCCASION"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "userId",
-        "title",
-        "content",
-        "kind",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["userId", "title", "content", "kind", "createdAt", "updatedAt"]
+    },
+    "CustomFont": {
+      "title": "CustomFont",
+      "description": "Custom Style Studio per-character Unicode glyph mapping created by a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "charMapEncoded": { "type": "string" },
+        "prefix": { "type": "string" },
+        "suffix": { "type": "string" },
+        "letterJoiner": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "charMapEncoded", "prefix", "suffix", "letterJoiner", "createdAt", "updatedAt"]
+    },
+    "ReferralCode": {
+      "title": "ReferralCode",
+      "description": "Shareable referral code lookup document",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "ownerUid", "createdAt"]
+    },
+    "ReferralClaim": {
+      "title": "ReferralClaim",
+      "description": "One-time referral redemption record keyed by claimer UID",
+      "type": "object",
+      "properties": {
+        "claimerUid": { "type": "string" },
+        "code": { "type": "string" },
+        "referrerUid": { "type": "string" },
+        "bonusPoints": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["claimerUid", "code", "referrerUid", "bonusPoints", "createdAt"]
+    },
+    "MonetizationConfig": {
+      "title": "MonetizationConfig",
+      "description": "Admin-managed non-PII AdMob & reward points configuration",
+      "type": "object",
+      "properties": {
+        "adsEnabled": { "type": "boolean" },
+        "bannerAdUnitId": { "type": "string" },
+        "rewardedAdUnitId": { "type": "string" },
+        "adRewardPoints": { "type": "integer" },
+        "referralBonusPoints": { "type": "integer" },
+        "announcementBanner": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adsEnabled", "bannerAdUnitId", "rewardedAdUnitId", "adRewardPoints", "referralBonusPoints", "announcementBanner", "updatedBy", "updatedAt"]
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/UserProfile"
-      },
-      "description": "Per-user synced VEDOGRAPHi profile and font preferences"
-    },
-    "/users/{userId}/creations/{creationId}": {
-      "schema": {
-        "$ref": "#/entities/SavedCreation"
-      },
-      "description": "Per-user saved styled text creations in My Text Studio"
-    }
+    "/users/{userId}": { "schema": { "$ref": "#/entities/UserProfile" }, "description": "Per-user profile & wallet" },
+    "/users/{userId}/creations/{creationId}": { "schema": { "$ref": "#/entities/SavedCreation" }, "description": "Saved studio creations" },
+    "/users/{userId}/custom_fonts/{fontId}": { "schema": { "$ref": "#/entities/CustomFont" }, "description": "Custom Style Studio fonts" },
+    "/referral_codes/{code}": { "schema": { "$ref": "#/entities/ReferralCode" }, "description": "Shareable referral code lookup" },
+    "/referral_claims/{claimId}": { "schema": { "$ref": "#/entities/ReferralClaim" }, "description": "Single-claim referral receipts" },
+    "/app_config/{configId}": { "schema": { "$ref": "#/entities/MonetizationConfig" }, "description": "Admin-controlled AdMob & reward config" }
   }
 }

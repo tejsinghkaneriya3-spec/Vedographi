@@ -6,12 +6,16 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.auth.DeleteAuthAccountResult
+import com.example.data.CloudCustomFont
 import com.example.data.CloudSavedCreation
 import com.example.data.CloudSyncGateway
 import com.example.data.CloudUserProfile
 import com.example.data.PreferencesRepository
+import com.example.domain.AppMonetizationConfig
 import com.example.domain.CachedEntrySource
 import com.example.domain.CachedStyleEntry
+import com.example.domain.CustomFontCodec
+import com.example.domain.CustomFontDefinition
 import com.example.domain.SavedCreation
 import com.example.ui.AccountDeletionState
 import com.example.ui.VedographiViewModel
@@ -44,6 +48,8 @@ class AuthAndProfilePersistenceTest {
     ) : CloudSyncGateway {
         private val profilesFlow = MutableStateFlow(initialProfiles)
         private val creationsFlow = MutableStateFlow(initialCreations)
+        private val customFontsFlow = MutableStateFlow<Map<String, List<CloudCustomFont>>>(emptyMap())
+        private val monetizationConfigFlow = MutableStateFlow(AppMonetizationConfig())
         var ensureCalls = 0
         var savedCreationsCount = 0
         var activeUid: String? = null
@@ -54,14 +60,26 @@ class AuthAndProfilePersistenceTest {
         override fun observeCreations(userId: String): Flow<List<CloudSavedCreation>> =
             creationsFlow.map { it[userId].orEmpty() }
 
+        override fun observeCustomFonts(userId: String): Flow<List<CloudCustomFont>> =
+            customFontsFlow.map { it[userId].orEmpty() }
+
+        override fun observeMonetizationConfig(): Flow<AppMonetizationConfig> =
+            monetizationConfigFlow
+
         override suspend fun fetchCreationsOnce(userId: String): Result<List<CloudSavedCreation>> =
             Result.success(creationsFlow.value[userId].orEmpty())
+
+        override suspend fun fetchCustomFontsOnce(userId: String): Result<List<CloudCustomFont>> =
+            Result.success(customFontsFlow.value[userId].orEmpty())
 
         override suspend fun ensureUserProfile(
             displayName: String?,
             darkTheme: Boolean,
             initialFavorites: Set<String>,
-            initialRecents: List<String>
+            initialRecents: List<String>,
+            initialPoints: Int,
+            initialUnlockedProIds: Set<String>,
+            initialAdsWatched: Int
         ): Result<CloudUserProfile> {
             ensureCalls++
             val uid = activeUid ?: return Result.failure(IllegalStateException("Not signed in"))
@@ -73,15 +91,22 @@ class AuthAndProfilePersistenceTest {
                     displayName = cleanName,
                     darkTheme = darkTheme,
                     favoriteFontIds = initialFavorites.toList(),
-                    recentFontIds = initialRecents.distinct().take(25)
+                    recentFontIds = initialRecents.distinct().take(25),
+                    pointsBalance = initialPoints.toLong(),
+                    unlockedProFontIds = initialUnlockedProIds.toList(),
+                    adsWatchedCount = initialAdsWatched.toLong()
                 )
             } else {
                 val mergedFavs = (existing.favoriteFontIds + initialFavorites).distinct()
                 val mergedRecents = (initialRecents + existing.recentFontIds).distinct().take(25)
+                val mergedUnlocked = (existing.unlockedProFontIds + initialUnlockedProIds).distinct()
                 existing.copy(
                     displayName = cleanName ?: existing.displayName,
                     favoriteFontIds = mergedFavs,
-                    recentFontIds = mergedRecents
+                    recentFontIds = mergedRecents,
+                    pointsBalance = maxOf(existing.pointsBalance, initialPoints.toLong()),
+                    unlockedProFontIds = mergedUnlocked,
+                    adsWatchedCount = maxOf(existing.adsWatchedCount, initialAdsWatched.toLong())
                 )
             }
             profilesFlow.value = profilesFlow.value + (uid to result)
@@ -107,6 +132,43 @@ class AuthAndProfilePersistenceTest {
             val existing = profilesFlow.value[uid] ?: CloudUserProfile(userId = uid)
             profilesFlow.value = profilesFlow.value + (uid to existing.copy(darkTheme = darkTheme))
             return Result.success(Unit)
+        }
+
+        override suspend fun updateWalletAndProUnlocks(
+            pointsBalance: Int,
+            unlockedProIds: Set<String>,
+            adsWatchedCount: Int
+        ): Result<Unit> {
+            val uid = activeUid ?: return Result.failure(IllegalStateException("Not signed in"))
+            val existing = profilesFlow.value[uid] ?: CloudUserProfile(userId = uid)
+            profilesFlow.value = profilesFlow.value + (
+                uid to existing.copy(
+                    pointsBalance = pointsBalance.toLong(),
+                    unlockedProFontIds = unlockedProIds.toList(),
+                    adsWatchedCount = adsWatchedCount.toLong()
+                )
+            )
+            return Result.success(Unit)
+        }
+
+        override suspend fun ensureReferralCode(preferredName: String?): Result<String> {
+            val uid = activeUid ?: return Result.failure(IllegalStateException("Not signed in"))
+            val existing = profilesFlow.value[uid] ?: CloudUserProfile(userId = uid)
+            val code = existing.referralCode ?: "TEST${uid.takeLast(4).uppercase()}"
+            profilesFlow.value = profilesFlow.value + (uid to existing.copy(referralCode = code))
+            return Result.success(code)
+        }
+
+        override suspend fun redeemReferralCode(rawCode: String, bonusPoints: Int): Result<Int> {
+            val uid = activeUid ?: return Result.failure(IllegalStateException("Not signed in"))
+            val existing = profilesFlow.value[uid] ?: CloudUserProfile(userId = uid)
+            profilesFlow.value = profilesFlow.value + (
+                uid to existing.copy(
+                    referredByCode = rawCode,
+                    pointsBalance = existing.pointsBalance + bonusPoints.toLong()
+                )
+            )
+            return Result.success(bonusPoints)
         }
 
         override suspend fun saveCreation(
@@ -136,10 +198,39 @@ class AuthAndProfilePersistenceTest {
             return Result.success(Unit)
         }
 
+        override suspend fun saveCustomFont(definition: CustomFontDefinition): Result<Unit> {
+            val uid = activeUid ?: return Result.failure(IllegalStateException("Not signed in"))
+            val list = customFontsFlow.value[uid].orEmpty().filterNot { it.id == definition.id }
+            val added = CloudCustomFont(
+                id = definition.id,
+                userId = uid,
+                name = definition.name,
+                charMapEncoded = CustomFontCodec.encodeMap(definition.charMap),
+                prefix = definition.prefix,
+                suffix = definition.suffix,
+                letterJoiner = definition.letterJoiner
+            )
+            customFontsFlow.value = customFontsFlow.value + (uid to (listOf(added) + list))
+            return Result.success(Unit)
+        }
+
+        override suspend fun deleteCustomFont(fontId: String): Result<Unit> {
+            val uid = activeUid ?: return Result.failure(IllegalStateException("Not signed in"))
+            val list = customFontsFlow.value[uid].orEmpty().filterNot { it.id == fontId }
+            customFontsFlow.value = customFontsFlow.value + (uid to list)
+            return Result.success(Unit)
+        }
+
+        override suspend fun updateMonetizationConfig(config: AppMonetizationConfig): Result<Unit> {
+            monetizationConfigFlow.value = config
+            return Result.success(Unit)
+        }
+
         override suspend fun deleteAllUserCloudData(): Result<Unit> {
             val uid = activeUid ?: return Result.failure(IllegalStateException("Not signed in"))
             profilesFlow.value = profilesFlow.value - uid
             creationsFlow.value = creationsFlow.value - uid
+            customFontsFlow.value = customFontsFlow.value - uid
             return Result.success(Unit)
         }
 

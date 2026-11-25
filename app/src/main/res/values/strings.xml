@@ -53,4 +53,17 @@
     <string name="account_deleted_confirmation">Your account and all cloud &amp; local data have been permanently deleted.</string>
     <string name="hindi_calligraphy_title">हिंदी कैलीग्राफी • Hindi Calligraphy</string>
     <string name="share_calligraphy_card">Share Card</string>
+
+    <!-- AdMob Official Google Test IDs (Replace via Admin Panel / Production Build) -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_banner_unit_id">ca-app-pub-3940256099942544/6300978111</string>
+    <string name="admob_rewarded_unit_id">ca-app-pub-3940256099942544/5224354917</string>
+
+    <!-- Beginner Guide, Rewards, Referral, Custom Studio & Admin -->
+    <string name="how_to_use_title">How to Use • कैसे इस्तेमाल करें</string>
+    <string name="rewards_title">Earn Points &amp; Pro Fonts</string>
+    <string name="refer_friend_title">Refer &amp; Earn +2 Points</string>
+    <string name="custom_style_studio_title">Custom Style Studio</string>
+    <string name="admin_panel_title">Admin Panel</string>
+    <string name="wa_fb_safe_filter">WA &amp; FB Safe</string>
 </resources>

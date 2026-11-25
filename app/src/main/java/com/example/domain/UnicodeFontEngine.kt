@@ -2,8 +2,8 @@ package com.example.domain
 
 /**
  * Pure Kotlin Unicode text transformation engine.
- * Guarantees 100% preservation of Devanagari (Hindi) characters, matras, half-letters (virama),
- * and non-Latin scripts without corrupting character sequences or combining marks.
+ * Supports Devanagari (Hindi) akshara-cluster-safe transformations alongside English/Latin Unicode
+ * alphabets so Hindi matras and conjunct consonants (virama) are never corrupted.
  */
 object UnicodeFontEngine {
 
@@ -24,6 +24,155 @@ object UnicodeFontEngine {
             (cp in 'a'.code..'z'.code) ||
             (cp in '0'.code..'9'.code)
     }
+
+    private fun isDevanagariBase(cp: Int): Boolean {
+        return cp in 0x0904..0x0939 ||
+            cp in 0x0958..0x0961 ||
+            cp in 0x0972..0x097F
+    }
+
+    private fun isDevanagariConsonant(cp: Int): Boolean {
+        return cp in 0x0915..0x0939 ||
+            cp in 0x0958..0x095F ||
+            cp in 0x0978..0x097F
+    }
+
+    private fun isDevanagariCombiningOrSign(cp: Int): Boolean {
+        return cp in 0x0900..0x0903 || // chandrabindu, anusvara, visarga
+            cp == 0x093C || // nukta
+            cp in 0x093A..0x093B ||
+            cp in 0x093E..0x094C || // dependent vowel matras
+            cp in 0x094E..0x0957 || // matras, Vedic tone marks
+            cp in 0x0962..0x0963 || // vocalic vowel signs
+            cp == 0xFE0F || cp == 0xFE0E
+    }
+
+    /**
+     * Splits text into grapheme/akshara tokens while keeping every Devanagari conjunct (consonant + virama + consonant)
+     * and trailing matras/anusvara/nukta attached inside a single indivisible cluster.
+     */
+    fun clusterDevanagariWords(input: String): List<Pair<String, Boolean>> {
+        if (input.isEmpty()) return emptyList()
+        val result = mutableListOf<Pair<String, Boolean>>()
+        var i = 0
+        while (i < input.length) {
+            val cp = input.codePointAt(i)
+            val charCount = Character.charCount(cp)
+            if (isDevanagariBase(cp)) {
+                val cluster = StringBuilder()
+                cluster.appendCodePoint(cp)
+                var j = i + charCount
+                var expectConsonantAfterVirama = false
+                while (j < input.length) {
+                    val nextCp = input.codePointAt(j)
+                    val nextCount = Character.charCount(nextCp)
+                    when {
+                        nextCp == 0x094D -> {
+                            cluster.appendCodePoint(nextCp)
+                            j += nextCount
+                            expectConsonantAfterVirama = true
+                        }
+                        expectConsonantAfterVirama && isDevanagariConsonant(nextCp) -> {
+                            cluster.appendCodePoint(nextCp)
+                            j += nextCount
+                            expectConsonantAfterVirama = false
+                        }
+                        isDevanagariCombiningOrSign(nextCp) -> {
+                            cluster.appendCodePoint(nextCp)
+                            j += nextCount
+                            expectConsonantAfterVirama = false
+                        }
+                        else -> break
+                    }
+                }
+                result.add(cluster.toString() to true)
+                i = j
+            } else {
+                result.add(String(Character.toChars(cp)) to false)
+                i += charCount
+            }
+        }
+        return result
+    }
+
+    /**
+     * Inserts a clean Unicode separator between adjacent Devanagari aksharas inside each Hindi word
+     * while never splitting matras or virama conjuncts. Works cleanly in WhatsApp, Facebook, and Instagram.
+     */
+    fun hindiAksharaInterleave(input: String, separator: String): String {
+        if (input.isEmpty() || separator.isEmpty()) return input
+        val tokens = clusterDevanagariWords(input)
+        val sb = StringBuilder(input.length * 2)
+        for (idx in tokens.indices) {
+            val (token, isDev) = tokens[idx]
+            sb.append(token)
+            if (isDev && idx + 1 < tokens.size && tokens[idx + 1].second) {
+                sb.append(separator)
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Wraps every Devanagari akshara cluster in brackets/ornaments (e.g. 『ह』『र』 『श』『ब्द』).
+     */
+    fun hindiAksharaWrap(input: String, left: String, right: String): String {
+        if (input.isEmpty()) return input
+        val tokens = clusterDevanagariWords(input)
+        val sb = StringBuilder(input.length * 3)
+        for ((token, isDev) in tokens) {
+            if (isDev) {
+                sb.append(left).append(token).append(right)
+            } else {
+                sb.append(token)
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Wraps each Devanagari word individually with clean ornaments so Hindi phrases stand out visually.
+     */
+    fun hindiWordWrap(input: String, left: String, right: String): String {
+        if (input.isEmpty()) return input
+        val tokens = clusterDevanagariWords(input)
+        val sb = StringBuilder(input.length * 2)
+        val currentDevWord = StringBuilder()
+
+        fun flushWord() {
+            if (currentDevWord.isNotEmpty()) {
+                sb.append(left).append(currentDevWord).append(right)
+                currentDevWord.clear()
+            }
+        }
+
+        for ((token, isDev) in tokens) {
+            if (isDev) {
+                currentDevWord.append(token)
+            } else {
+                flushWord()
+                sb.append(token)
+            }
+        }
+        flushWord()
+        return sb.toString()
+    }
+
+    // ---- Native WhatsApp Formatting Helpers (100% support for Hindi + English on WhatsApp) ----
+
+    fun whatsappFormat(input: String, markerLeft: String, markerRight: String = markerLeft): String {
+        if (input.isBlank()) return input
+        return input.lines().joinToString("\n") { line ->
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) line else "$markerLeft$trimmed$markerRight"
+        }
+    }
+
+    fun whatsappBold(input: String): String = whatsappFormat(input, "*")
+    fun whatsappItalic(input: String): String = whatsappFormat(input, "_")
+    fun whatsappStrike(input: String): String = whatsappFormat(input, "~")
+    fun whatsappBoldItalic(input: String): String = whatsappFormat(input, "*_", "_*")
+    fun whatsappMono(input: String): String = whatsappFormat(input, "```")
 
     /**
      * Maps ASCII A-Z, a-z, and optional 0-9 to mathematical / enclosed Unicode blocks
@@ -222,19 +371,21 @@ object UnicodeFontEngine {
 
     /**
      * Formats Hindi, Hinglish, or English text in authentic Unicode Hindi Calligraphy style:
-     * preserves all Devanagari words and matras cleanly, optionally converts numerals to
-     * Devanagari digits (०-९), transforms Latin runs with a calligraphy-compatible Unicode alphabet,
-     * and wraps with traditional calligraphic ornament borders.
+     * transforms Devanagari words safely at akshara-cluster boundaries (optional inter-akshara
+     * ornament, word framing, or WhatsApp bold/italic markers), converts numerals to ०-९,
+     * and transforms Latin letters into matching calligraphy Unicode alphabets.
      */
     fun hindiCalligraphyStyle(
         input: String,
         englishTransform: (String) -> String = ::boldScript,
+        hindiTransform: (String) -> String = { it },
         useDevanagariDigits: Boolean = true,
         prefix: String = "",
         suffix: String = ""
     ): String {
         val digitNormalized = if (useDevanagariDigits) devanagariDigits(input) else input
-        val styled = englishTransform(digitNormalized)
+        val hindiStyled = hindiTransform(digitNormalized)
+        val styled = englishTransform(hindiStyled)
         return "$prefix$styled$suffix"
     }
 
@@ -331,11 +482,8 @@ object UnicodeFontEngine {
             input,
             upperStart = 0x24B6,
             lowerStart = 0x24D0,
-            exceptions = mapOf(
-                '0' to 0x24EA
-            )
+            exceptions = mapOf('0' to 0x24EA)
         ).let { mapped ->
-            // Map digits 1-9 to Circled 1..9 (0x2460..0x2468), 0 to 0x24EA
             val sb = StringBuilder(mapped.length)
             var i = 0
             while (i < mapped.length) {
@@ -389,7 +537,7 @@ object UnicodeFontEngine {
             val upperCp = if (cp in 'a'.code..'z'.code) cp - 'a'.code + 'A'.code else cp
             if (upperCp in 'A'.code..'Z'.code) {
                 sb.appendCodePoint(0x1F1E6 + (upperCp - 'A'.code))
-                sb.append('\u2009') // thin space prevents unintended country flag ligatures
+                sb.append('\u2009')
             } else {
                 sb.appendCodePoint(cp)
             }

@@ -95,10 +95,16 @@ class VedographiAuditTest {
 
         FontCatalog.allStyles.forEach { spec ->
             val out = spec.transform(hindiSentence)
-            // Every Devanagari word must remain intact without corruption
-            assertTrue("Corrupted 'हर शब्द' in ${spec.id}: $out", out.contains("हर शब्द"))
-            assertTrue("Corrupted 'अंदाज़' in ${spec.id}: $out", out.contains("अंदाज़"))
-            assertTrue("Corrupted 'नमस्ते भारत' in ${spec.id}: $out", out.contains("नमस्ते भारत"))
+            if (spec.category == FontCategory.HINDI_CALLIGRAPHY) {
+                assertTrue("Broken conjunct 'ब्द' in ${spec.id}: $out", out.contains("ब्द"))
+                assertTrue("Broken akshara 'अं'/'दा'/'ज़' in ${spec.id}: $out", out.contains("अं") && out.contains("दा") && out.contains("ज़"))
+                assertTrue("Broken conjunct 'स्ते' in ${spec.id}: $out", out.contains("स्ते"))
+            } else {
+                // Every Devanagari word must remain intact without corruption
+                assertTrue("Corrupted 'हर शब्द' in ${spec.id}: $out", out.contains("हर शब्द"))
+                assertTrue("Corrupted 'अंदाज़' in ${spec.id}: $out", out.contains("अंदाज़"))
+                assertTrue("Corrupted 'नमस्ते भारत' in ${spec.id}: $out", out.contains("नमस्ते भारत"))
+            }
         }
     }
 

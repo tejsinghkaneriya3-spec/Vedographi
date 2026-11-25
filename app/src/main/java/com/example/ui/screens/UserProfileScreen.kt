@@ -22,8 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
@@ -137,6 +140,11 @@ fun UserProfileScreen(
     onClearCachedStyles: () -> Unit = {},
     onNavigateToFonts: () -> Unit,
     onNavigateToStudio: () -> Unit,
+    isAdmin: Boolean = false,
+    pointsBalance: Int = 0,
+    onOpenRewards: () -> Unit = {},
+    onOpenHowToUse: () -> Unit = {},
+    onOpenAdminPanel: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedSection by rememberSaveable { mutableIntStateOf(0) }
@@ -612,6 +620,38 @@ fun UserProfileScreen(
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
+
+                ProfileSettingsActionRow(
+                    icon = Icons.Filled.Diamond,
+                    iconTint = NeonOrchid,
+                    title = "Earn Points & Refer (+2 pts)",
+                    subtitle = "Wallet: $pointsBalance pts • Watch Ads & Unlock Pro Fonts",
+                    testTag = "profile_rewards_btn",
+                    onClick = onOpenRewards
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                ProfileSettingsActionRow(
+                    icon = Icons.AutoMirrored.Filled.HelpOutline,
+                    iconTint = EmeraldSuccess,
+                    title = stringResource(R.string.how_to_use_title),
+                    subtitle = "Step-by-step guide for WhatsApp, Hindi & Custom Studio",
+                    testTag = "profile_how_to_use_btn",
+                    onClick = onOpenHowToUse
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                if (isAdmin) {
+                    ProfileSettingsActionRow(
+                        icon = Icons.Filled.AdminPanelSettings,
+                        iconTint = EmeraldSuccess,
+                        title = stringResource(R.string.admin_panel_title),
+                        subtitle = "AdMob IDs, rewards & admin test tools",
+                        testTag = "profile_admin_panel_btn",
+                        onClick = onOpenAdminPanel
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
 
                 ProfileSettingsActionRow(
                     icon = Icons.Filled.PrivacyTip,

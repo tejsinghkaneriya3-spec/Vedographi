@@ -1,5 +1,8 @@
 package com.example
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -93,9 +96,11 @@ import com.example.data.PreferencesRepository
 import com.example.domain.CachedEntrySource
 import com.example.domain.CachedStyleEntry
 import com.example.domain.FontCatalog
+import com.example.domain.FontCategory
 import com.example.domain.SocialPlatform
 import com.example.ui.BatchCopyVariation
 import com.example.ui.FontPreviewItem
+import com.example.ui.UnlockProResult
 import com.example.ui.VedographiViewModel
 import com.example.ui.components.BatchCopyAllBottomSheet
 import com.example.ui.components.SocialShareBottomSheet
@@ -103,15 +108,19 @@ import com.example.ui.components.VedographiDefaults
 import com.example.ui.components.VedographiSplashScreen
 import com.example.ui.components.VedographiTopHeader
 import com.example.ui.screens.AboutScreen
+import com.example.ui.screens.AdminPanelScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.BioCaptionScreen
 import com.example.ui.screens.FontsHomeScreen
+import com.example.ui.screens.HowToUseScreen
 import com.example.ui.screens.MyTextStudioScreen
 import com.example.ui.screens.PrivacyPolicyScreen
+import com.example.ui.screens.RewardsEarnScreen
 import com.example.ui.screens.UserProfileScreen
 import com.example.ui.screens.UsernameScreen
 import com.example.ui.theme.RoyalViolet
 import com.example.ui.theme.VedographiTheme
+import com.example.util.AdMobManager
 import com.example.util.NetworkMonitor
 import com.example.util.ShareAndClipboardHelper
 import com.google.firebase.auth.FirebaseUser
@@ -125,6 +134,15 @@ const val ROUTE_STUDIO = "studio_decorator"
 const val ROUTE_PROFILE = "user_profile"
 const val ROUTE_PRIVACY = "privacy_policy"
 const val ROUTE_ABOUT = "about_app"
+const val ROUTE_REWARDS = "rewards_earn"
+const val ROUTE_HOW_TO_USE = "how_to_use"
+const val ROUTE_ADMIN = "admin_panel"
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 private enum class AuthLegalOverlay {
     NONE,
@@ -176,6 +194,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        AdMobManager.initialize(applicationContext)
         setContent {
             val localPrefs = remember { PreferencesRepository(applicationContext) }
             val localDarkTheme by localPrefs.isDarkTheme.collectAsStateWithLifecycle(initialValue = true)
@@ -281,6 +300,7 @@ class MainActivity : ComponentActivity() {
                                                     cloudRepo = CloudSyncRepository(db),
                                                     currentUserId = user.uid,
                                                     userDisplayName = user.displayName,
+                                                    userEmail = user.email,
                                                     networkOnlineFlow = NetworkMonitor(app).isOnline
                                                 )
                                             } else {
@@ -289,6 +309,7 @@ class MainActivity : ComponentActivity() {
                                                     cloudRepo = null,
                                                     currentUserId = null,
                                                     userDisplayName = null,
+                                                    userEmail = null,
                                                     networkOnlineFlow = NetworkMonitor(app).isOnline
                                                 )
                                             }
@@ -350,10 +371,15 @@ private fun VedographiAppShell(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: ROUTE_FONTS
-    val isDetailRoute = currentRoute == ROUTE_PRIVACY || currentRoute == ROUTE_ABOUT
+    val isDetailRoute = currentRoute == ROUTE_PRIVACY ||
+        currentRoute == ROUTE_ABOUT ||
+        currentRoute == ROUTE_REWARDS ||
+        currentRoute == ROUTE_HOW_TO_USE ||
+        currentRoute == ROUTE_ADMIN
     var showAccountDialog by remember { mutableStateOf(false) }
     var isSigningIn by remember { mutableStateOf(false) }
     var guestSignInError by remember { mutableStateOf<String?>(null) }
+    var pendingProUnlockItem by remember { mutableStateOf<FontPreviewItem?>(null) }
     val isGuest = currentUser == null
 
     LaunchedEffect(currentUser) {
@@ -383,6 +409,7 @@ private fun VedographiAppShell(
     val isInputEmpty by viewModel.isInputEmpty.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val waFbSafeOnly by viewModel.waFbSafeOnly.collectAsStateWithLifecycle()
     val isSearchExpandedAcrossAll by viewModel.isSearchExpandedAcrossAll.collectAsStateWithLifecycle()
     val selectedCalligraphyPreset by viewModel.selectedCalligraphyPreset.collectAsStateWithLifecycle()
     val hasHindiInInput by viewModel.hasHindiInInput.collectAsStateWithLifecycle()
@@ -390,10 +417,43 @@ private fun VedographiAppShell(
     val filteredItems by viewModel.filteredFontItems.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteFontIds.collectAsStateWithLifecycle()
     val recentIds by viewModel.recentFontIds.collectAsStateWithLifecycle()
+    val allAvailableStyles by viewModel.allAvailableStyles.collectAsStateWithLifecycle()
     val savedCreations by viewModel.savedCreations.collectAsStateWithLifecycle()
     val copiedFeedbackId by viewModel.copiedFeedbackId.collectAsStateWithLifecycle()
     val shareSheetPayload by viewModel.shareSheetPayload.collectAsStateWithLifecycle()
     val batchCopySheet by viewModel.batchCopySheet.collectAsStateWithLifecycle()
+
+    // Wallet, Pro Fonts, Custom Style Studio, Referrals, Guide & Admin Config
+    val pointsBalance by viewModel.pointsBalance.collectAsStateWithLifecycle()
+    val unlockedProIds by viewModel.unlockedProFontIds.collectAsStateWithLifecycle()
+    val customFonts by viewModel.customFonts.collectAsStateWithLifecycle()
+    val myReferralCode by viewModel.myReferralCode.collectAsStateWithLifecycle()
+    val redeemedReferralCode by viewModel.redeemedReferralCode.collectAsStateWithLifecycle()
+    val referralCount by viewModel.referralCount.collectAsStateWithLifecycle()
+    val adsWatchedCount by viewModel.adsWatchedCount.collectAsStateWithLifecycle()
+    val quickGuideDismissed by viewModel.quickGuideDismissed.collectAsStateWithLifecycle()
+    val monetizationConfig by viewModel.monetizationConfig.collectAsStateWithLifecycle()
+
+    // Custom Style Studio Draft
+    val customDraftName by viewModel.customDraftName.collectAsStateWithLifecycle()
+    val customSamplePreviewInput by viewModel.customSamplePreviewInput.collectAsStateWithLifecycle()
+    val customDraftCharMap by viewModel.customDraftCharMap.collectAsStateWithLifecycle()
+    val customDraftPrefix by viewModel.customDraftPrefix.collectAsStateWithLifecycle()
+    val customDraftSuffix by viewModel.customDraftSuffix.collectAsStateWithLifecycle()
+    val customDraftJoiner by viewModel.customDraftJoiner.collectAsStateWithLifecycle()
+    val customSelectedChar by viewModel.customSelectedChar.collectAsStateWithLifecycle()
+    val customStudioPreviewText by viewModel.customStudioPreviewText.collectAsStateWithLifecycle()
+
+    // AdMob Rewarded state
+    val isRewardedAdReady by AdMobManager.isRewardedReady.collectAsStateWithLifecycle()
+    val isRewardedAdLoading by AdMobManager.isRewardedLoading.collectAsStateWithLifecycle()
+    val adStatusText by AdMobManager.lastAdStatus.collectAsStateWithLifecycle()
+
+    LaunchedEffect(monetizationConfig.adsEnabled, monetizationConfig.rewardedAdUnitId) {
+        if (monetizationConfig.adsEnabled) {
+            AdMobManager.preloadRewardedAd(context, monetizationConfig.rewardedAdUnitId)
+        }
+    }
 
     LaunchedEffect(cloudSyncError) {
         val err = cloudSyncError
@@ -501,25 +561,27 @@ private fun VedographiAppShell(
     }
 
     val effectivePreviewSource = inputText.ifEmpty { "VEDOGRAPHi" }
-    val favoriteFontItems = remember(favoriteIds, effectivePreviewSource, copiedFeedbackId) {
-        FontCatalog.allStyles
+    val favoriteFontItems = remember(allAvailableStyles, favoriteIds, unlockedProIds, effectivePreviewSource, copiedFeedbackId) {
+        allAvailableStyles
             .filter { it.id in favoriteIds }
             .map { spec ->
                 FontPreviewItem(
                     spec = spec,
                     previewText = spec.transform(effectivePreviewSource),
                     isFavorite = true,
-                    isRecentlyCopied = copiedFeedbackId == spec.id
+                    isRecentlyCopied = copiedFeedbackId == spec.id,
+                    isUnlocked = !spec.isPro || spec.id in unlockedProIds
                 )
             }
     }
-    val recentFontItems = remember(recentIds, favoriteIds, effectivePreviewSource, copiedFeedbackId) {
-        recentIds.mapNotNull { FontCatalog.findById(it) }.map { spec ->
+    val recentFontItems = remember(allAvailableStyles, recentIds, favoriteIds, unlockedProIds, effectivePreviewSource, copiedFeedbackId) {
+        recentIds.mapNotNull { id -> allAvailableStyles.firstOrNull { it.id == id } }.map { spec ->
             FontPreviewItem(
                 spec = spec,
                 previewText = spec.transform(effectivePreviewSource),
                 isFavorite = spec.id in favoriteIds,
-                isRecentlyCopied = copiedFeedbackId == spec.id
+                isRecentlyCopied = copiedFeedbackId == spec.id,
+                isUnlocked = !spec.isPro || spec.id in unlockedProIds
             )
         }
     }
@@ -667,6 +729,14 @@ private fun VedographiAppShell(
                                 onToggleTheme = { viewModel.toggleDarkTheme() },
                                 isCloudSynced = isCloudSynced,
                                 isOnline = isOnline,
+                                pointsBalance = pointsBalance,
+                                onPointsClick = {
+                                    viewModel.ensureReferralCode()
+                                    navController.navigate(ROUTE_REWARDS) { launchSingleTop = true }
+                                },
+                                onHowToUseClick = {
+                                    navController.navigate(ROUTE_HOW_TO_USE) { launchSingleTop = true }
+                                },
                                 onAccountClick = {
                                     if (currentRoute == ROUTE_PROFILE) {
                                         showAccountDialog = true
@@ -696,6 +766,12 @@ private fun VedographiAppShell(
                                     trendingItems = trendingItems,
                                     filteredItems = filteredItems,
                                     selectedCalligraphyPreset = selectedCalligraphyPreset,
+                                    waFbSafeOnly = waFbSafeOnly,
+                                    quickGuideDismissed = quickGuideDismissed,
+                                    pointsBalance = pointsBalance,
+                                    announcementBanner = monetizationConfig.announcementBanner,
+                                    adsEnabled = monetizationConfig.adsEnabled,
+                                    bannerAdUnitId = monetizationConfig.bannerAdUnitId,
                                     onSelectCalligraphyPreset = viewModel::selectCalligraphyPreset,
                                     onCopyCalligraphyText = { text ->
                                         copyPlain(text, label = "Copied Hindi calligraphy text!")
@@ -727,17 +803,45 @@ private fun VedographiAppShell(
                                     },
                                     onSearchChange = viewModel::updateSearchQuery,
                                     onSelectCategory = viewModel::selectCategory,
+                                    onToggleWaFbSafe = viewModel::toggleWaFbSafeFilter,
+                                    onDismissQuickGuide = viewModel::dismissQuickGuide,
+                                    onOpenHowToUse = {
+                                        navController.navigate(ROUTE_HOW_TO_USE) { launchSingleTop = true }
+                                    },
+                                    onOpenCreateCustomFont = {
+                                        viewModel.selectStudioTab(6)
+                                        navigateTo(ROUTE_STUDIO)
+                                    },
+                                    onOpenEarnPoints = {
+                                        viewModel.ensureReferralCode()
+                                        navController.navigate(ROUTE_REWARDS) { launchSingleTop = true }
+                                    },
+                                    onUnlockProItem = { item ->
+                                        pendingProUnlockItem = item
+                                    },
+                                    onDeleteCustomFont = { id ->
+                                        viewModel.deleteCustomFontDefinition(id)
+                                        showMessage("Deleted custom font")
+                                    },
                                     onCopyItem = { item ->
-                                        copyPlain(
-                                            text = item.previewText,
-                                            fontId = item.spec.id,
-                                            label = "Copied ${item.spec.name}!"
-                                        )
+                                        if (item.isUnlocked) {
+                                            copyPlain(
+                                                text = item.previewText,
+                                                fontId = item.spec.id,
+                                                label = "Copied ${item.spec.name}!"
+                                            )
+                                        } else {
+                                            pendingProUnlockItem = item
+                                        }
                                     },
                                     onToggleFavorite = viewModel::toggleFavorite,
                                     onShareItem = { item ->
-                                        viewModel.markFontUsed(item.spec.id, item.previewText)
-                                        viewModel.openShareSheet(item.previewText)
+                                        if (item.isUnlocked) {
+                                            viewModel.markFontUsed(item.spec.id, item.previewText)
+                                            viewModel.openShareSheet(item.previewText)
+                                        } else {
+                                            pendingProUnlockItem = item
+                                        }
                                     }
                                 )
                             }
@@ -987,6 +1091,39 @@ private fun VedographiAppShell(
                                             },
                                             includeLabelsDefault = false
                                         )
+                                    },
+                                    customDraftName = customDraftName,
+                                    customSampleInput = customSamplePreviewInput,
+                                    customCharMap = customDraftCharMap,
+                                    customPrefix = customDraftPrefix,
+                                    customSuffix = customDraftSuffix,
+                                    customJoiner = customDraftJoiner,
+                                    customSelectedChar = customSelectedChar,
+                                    customLivePreview = customStudioPreviewText,
+                                    savedCustomFonts = customFonts,
+                                    onCustomNameChange = viewModel::updateCustomDraftName,
+                                    onCustomSampleInputChange = viewModel::updateCustomSamplePreviewInput,
+                                    onCustomSelectChar = viewModel::selectCustomEditChar,
+                                    onCustomSetCharGlyph = viewModel::setCustomCharGlyph,
+                                    onCustomApplyStarter = viewModel::applyCustomStarterAlphabet,
+                                    onCustomRandomize = viewModel::randomizeCustomGlyphMix,
+                                    onCustomSelectPrefix = viewModel::updateCustomDraftPrefix,
+                                    onCustomSelectSuffix = viewModel::updateCustomDraftSuffix,
+                                    onCustomSelectJoiner = viewModel::updateCustomDraftJoiner,
+                                    onCustomResetDraft = viewModel::resetCustomFontDraft,
+                                    onCustomSaveFont = {
+                                        viewModel.saveCustomFontDefinition { savedDef ->
+                                            viewModel.selectCategory(FontCategory.MY_CUSTOM)
+                                            showMessage("Saved '${savedDef.name}'! Check 'My Custom' in Fonts tab.")
+                                        }
+                                    },
+                                    onCustomLoadFont = { def ->
+                                        viewModel.loadCustomFontIntoEditor(def)
+                                        showMessage("Loaded '${def.name}' for editing")
+                                    },
+                                    onCustomDeleteFont = { id ->
+                                        viewModel.deleteCustomFontDefinition(id)
+                                        showMessage("Deleted custom font")
                                     }
                                 )
                             }
@@ -1096,7 +1233,116 @@ private fun VedographiAppShell(
                                         showMessage("Cleared offline cache")
                                     },
                                     onNavigateToFonts = { navigateTo(ROUTE_FONTS) },
-                                    onNavigateToStudio = { navigateTo(ROUTE_STUDIO) }
+                                    onNavigateToStudio = { navigateTo(ROUTE_STUDIO) },
+                                    isAdmin = viewModel.isAdmin,
+                                    pointsBalance = pointsBalance,
+                                    onOpenRewards = {
+                                        viewModel.ensureReferralCode()
+                                        navController.navigate(ROUTE_REWARDS) { launchSingleTop = true }
+                                    },
+                                    onOpenHowToUse = {
+                                        navController.navigate(ROUTE_HOW_TO_USE) { launchSingleTop = true }
+                                    },
+                                    onOpenAdminPanel = {
+                                        if (viewModel.isAdmin) {
+                                            navController.navigate(ROUTE_ADMIN) { launchSingleTop = true }
+                                        }
+                                    }
+                                )
+                            }
+
+                            composable(ROUTE_REWARDS) {
+                                val proStyles = remember {
+                                    FontCatalog.allStyles.filter { it.isPro }
+                                }
+                                RewardsEarnScreen(
+                                    pointsBalance = pointsBalance,
+                                    adsWatchedCount = adsWatchedCount,
+                                    referralCount = referralCount,
+                                    myReferralCode = myReferralCode,
+                                    redeemedReferralCode = redeemedReferralCode,
+                                    unlockedProIds = unlockedProIds,
+                                    proFonts = proStyles,
+                                    sampleInput = effectivePreviewSource,
+                                    monetizationConfig = monetizationConfig,
+                                    isRewardedAdReady = isRewardedAdReady,
+                                    isRewardedAdLoading = isRewardedAdLoading,
+                                    adStatusText = adStatusText,
+                                    onBack = { navController.popBackStack() },
+                                    onWatchRewardedAd = {
+                                        AdMobManager.showRewardedAd(
+                                            activity = context.findActivity(),
+                                            adUnitId = monetizationConfig.rewardedAdUnitId,
+                                            expectedPoints = monetizationConfig.adRewardPoints,
+                                            onRewardEarned = { earned ->
+                                                viewModel.grantAdRewardPoints(earned) { newBalance ->
+                                                    showMessage("+$earned pts earned! Wallet balance: $newBalance pts")
+                                                }
+                                            },
+                                            onStatusMessage = { msg -> showMessage(msg) }
+                                        )
+                                    },
+                                    onReloadRewardedAd = {
+                                        AdMobManager.preloadRewardedAd(context, monetizationConfig.rewardedAdUnitId)
+                                    },
+                                    onCopyReferralCode = { code ->
+                                        copyPlain(code, label = "Referral code $code copied!")
+                                    },
+                                    onShareReferralInvite = { code ->
+                                        val link = context.getString(R.string.app_share_url)
+                                        val inviteMsg = "VEDOGRAPHi use karo stylish Hindi & English fonts ke liye! Mera referral code $code lagao aur +${monetizationConfig.referralBonusPoints} bonus points pao: $link"
+                                        viewModel.openShareSheet(inviteMsg)
+                                    },
+                                    onRedeemReferralCode = viewModel::redeemReferralCode,
+                                    onUnlockProFont = { spec ->
+                                        pendingProUnlockItem = FontPreviewItem(
+                                            spec = spec,
+                                            previewText = spec.transform(effectivePreviewSource),
+                                            isFavorite = spec.id in favoriteIds,
+                                            isRecentlyCopied = false,
+                                            isUnlocked = false
+                                        )
+                                    },
+                                    onCopyProFontSample = { spec, preview ->
+                                        copyPlain(preview, fontId = spec.id, label = "Copied ${spec.name}!")
+                                    }
+                                )
+                            }
+
+                            composable(ROUTE_HOW_TO_USE) {
+                                HowToUseScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onTryFontsClick = {
+                                        navController.popBackStack()
+                                        navigateTo(ROUTE_FONTS)
+                                    },
+                                    onOpenEarnPointsClick = {
+                                        viewModel.ensureReferralCode()
+                                        navController.navigate(ROUTE_REWARDS) { launchSingleTop = true }
+                                    }
+                                )
+                            }
+
+                            composable(ROUTE_ADMIN) {
+                                AdminPanelScreen(
+                                    isAdmin = viewModel.isAdmin,
+                                    adminEmail = currentUser?.email,
+                                    currentConfig = monetizationConfig,
+                                    currentPointsBalance = pointsBalance,
+                                    onBack = { navController.popBackStack() },
+                                    onSaveConfig = { updatedConfig ->
+                                        viewModel.saveAdminMonetizationConfig(updatedConfig) { res ->
+                                            res.fold(
+                                                onSuccess = { showMessage("Admin config saved to Firestore!") },
+                                                onFailure = { err -> showMessage(err.localizedMessage ?: "Failed to save config") }
+                                            )
+                                        }
+                                    },
+                                    onGrantSelfPoints = { pts ->
+                                        viewModel.adminGrantSelfPoints(pts) { newBal ->
+                                            showMessage("+$pts test points credited! Balance: $newBal pts")
+                                        }
+                                    }
                                 )
                             }
 
@@ -1157,6 +1403,93 @@ private fun VedographiAppShell(
             onShareBatch = { formattedText, _ ->
                 viewModel.dismissBatchCopySheet()
                 viewModel.openShareSheet(formattedText)
+            }
+        )
+    }
+
+    val proDialogItem = pendingProUnlockItem
+    if (proDialogItem != null) {
+        val spec = proDialogItem.spec
+        val hasEnoughPoints = pointsBalance >= spec.proCost
+        AlertDialog(
+            onDismissRequest = { pendingProUnlockItem = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            title = {
+                Text(
+                    text = if (hasEnoughPoints) "Unlock ${spec.name}?" else "Need More Points",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = proDialogItem.previewText,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.padding(top = 8.dp))
+                    Text(
+                        text = if (hasEnoughPoints) {
+                            "Unlock '${spec.name}' permanently for ${spec.proCost} points? Your balance: $pointsBalance pts."
+                        } else {
+                            "Cost: ${spec.proCost} pts  •  Your Balance: $pointsBalance pts.\n\nWatch a quick Rewarded Ad (+${monetizationConfig.adRewardPoints} pts) or Refer a friend (+${monetizationConfig.referralBonusPoints} pts) to unlock!"
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                if (hasEnoughPoints) {
+                    Button(
+                        onClick = {
+                            val targetSpec = spec
+                            val previewText = proDialogItem.previewText
+                            pendingProUnlockItem = null
+                            viewModel.unlockProFont(targetSpec) { res ->
+                                when (res) {
+                                    is UnlockProResult.Unlocked -> {
+                                        copyPlain(
+                                            text = previewText,
+                                            fontId = targetSpec.id,
+                                            label = "Unlocked '${targetSpec.name}' & copied! Balance: ${res.newBalance} pts"
+                                        )
+                                    }
+                                    is UnlockProResult.AlreadyUnlocked -> {
+                                        copyPlain(previewText, fontId = targetSpec.id)
+                                    }
+                                    is UnlockProResult.InsufficientPoints -> {
+                                        showMessage("Need ${res.requiredCost} pts (you have ${res.currentBalance} pts)")
+                                    }
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors(),
+                        modifier = Modifier.testTag("confirm_unlock_pro_btn")
+                    ) {
+                        Text("Unlock (${spec.proCost} pts)", style = MaterialTheme.typography.labelLarge)
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            pendingProUnlockItem = null
+                            viewModel.ensureReferralCode()
+                            navController.navigate(ROUTE_REWARDS) { launchSingleTop = true }
+                        },
+                        shape = RoundedCornerShape(VedographiDefaults.ButtonCornerRadius),
+                        colors = VedographiDefaults.primaryButtonColors(),
+                        modifier = Modifier.testTag("dialog_go_earn_pts_btn")
+                    ) {
+                        Text("Earn Points Now", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingProUnlockItem = null }) {
+                    Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                }
             }
         )
     }
