@@ -119,9 +119,12 @@ import com.example.ui.theme.CrispWhite
 import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.FacebookBlue
+import com.example.ui.theme.GoldCoin
+import com.example.ui.theme.GoldCoinGlow
 import com.example.ui.theme.HindiCalligraphyPreset
 import com.example.ui.theme.InstagramMagenta
 import com.example.ui.theme.KalamFontFamily
+import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonOrchid
 import com.example.ui.theme.ObsidianIconPlate
 import com.example.ui.theme.RoseHeart
@@ -222,10 +225,10 @@ fun CopyFeedbackPreviewBox(
 }
 
 object VedographiDefaults {
-    val ButtonCornerRadius = 14.dp
-    val InputCornerRadius = 16.dp
-    val CardCornerRadius = 20.dp
-    val HeroCornerRadius = 24.dp
+    val ButtonCornerRadius = 16.dp
+    val InputCornerRadius = 18.dp
+    val CardCornerRadius = 22.dp
+    val HeroCornerRadius = 26.dp
     val ButtonHeight = 48.dp
 
     @Composable
@@ -247,26 +250,26 @@ object VedographiDefaults {
 
     @Composable
     fun outlinedButtonBorder(enabled: Boolean = true): BorderStroke = BorderStroke(
-        width = 1.dp,
-        color = MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.9f else 0.3f)
+        width = 1.25.dp,
+        color = MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.85f else 0.3f)
     )
 
     @Composable
     fun textFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.75f),
+        focusedBorderColor = ElectricViolet,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.7f),
         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        focusedLabelColor = MaterialTheme.colorScheme.primary,
+        focusedLabelColor = ElectricViolet,
         unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
         focusedTextColor = MaterialTheme.colorScheme.onSurface,
         unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
         focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
         unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-        cursorColor = MaterialTheme.colorScheme.primary,
-        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+        cursorColor = ElectricViolet,
+        focusedLeadingIconColor = ElectricViolet,
         unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        focusedTrailingIconColor = MaterialTheme.colorScheme.primary,
+        focusedTrailingIconColor = ElectricViolet,
         unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
 
@@ -285,9 +288,9 @@ object VedographiDefaults {
         enabled = true,
         selected = selected,
         borderColor = MaterialTheme.colorScheme.outlineVariant,
-        selectedBorderColor = ElectricViolet.copy(alpha = 0.9f),
+        selectedBorderColor = ElectricViolet,
         borderWidth = 1.dp,
-        selectedBorderWidth = 1.25.dp
+        selectedBorderWidth = 1.5.dp
     )
 
     @Composable
@@ -330,7 +333,7 @@ fun VedographiPillBadge(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
             color = contentColor,
             maxLines = 1,
             softWrap = false,
@@ -355,7 +358,7 @@ fun VedographiHeroCard(
                 colors = listOf(
                     ElectricViolet,
                     NeonOrchid.copy(alpha = 0.9f),
-                    RoyalViolet
+                    NeonCyan.copy(alpha = 0.8f)
                 )
             )
         ),
@@ -369,7 +372,7 @@ fun VedographiHeroCard(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            RoyalViolet.copy(alpha = 0.14f),
+                            RoyalViolet.copy(alpha = 0.15f),
                             Color.Transparent
                         )
                     )
@@ -398,6 +401,7 @@ fun VedographiContentCard(
         shape = shape,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp,
+        shadowElevation = 2.dp,
         border = BorderStroke(1.dp, borderColor),
         modifier = baseModifier
     ) {
@@ -427,18 +431,26 @@ fun VedographiSectionHeader(
             modifier = Modifier.weight(1f)
         ) {
             if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = iconTint.copy(alpha = 0.14f),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconTint,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
             }
             Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -476,7 +488,7 @@ fun VedographiTopHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -485,11 +497,16 @@ fun VedographiTopHeader(
             modifier = Modifier.weight(1f)
         ) {
             Surface(
-                shape = RoundedCornerShape(13.dp),
-                color = ObsidianIconPlate,
-                border = BorderStroke(1.25.dp, ElectricViolet.copy(alpha = 0.65f)),
-                shadowElevation = 6.dp,
-                modifier = Modifier.size(42.dp)
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(
+                    width = 1.5.dp,
+                    brush = Brush.linearGradient(
+                        listOf(ElectricViolet, NeonOrchid, NeonCyan)
+                    )
+                ),
+                shadowElevation = 8.dp,
+                modifier = Modifier.size(44.dp)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.vedographi_icon_1795394652656),
@@ -508,7 +525,7 @@ fun VedographiTopHeader(
                         brush = Brush.linearGradient(
                             colors = listOf(
                                 MaterialTheme.colorScheme.onBackground,
-                                MaterialTheme.colorScheme.primary,
+                                ElectricViolet,
                                 NeonOrchid
                             )
                         )
@@ -520,7 +537,8 @@ fun VedographiTopHeader(
                     text = stringResource(R.string.brand_tagline),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontFamily = KalamFontFamily,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
                     ),
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -530,14 +548,20 @@ fun VedographiTopHeader(
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (onPointsClick != null) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = RoyalViolet.copy(alpha = 0.18f),
-                    border = BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.7f)),
+                    color = GoldCoin.copy(alpha = 0.12f),
+                    border = BorderStroke(
+                        width = 1.25.dp,
+                        brush = Brush.horizontalGradient(
+                            listOf(GoldCoin, NeonOrchid)
+                        )
+                    ),
+                    shadowElevation = 3.dp,
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
                         .clickable(onClick = onPointsClick)
@@ -551,14 +575,16 @@ fun VedographiTopHeader(
                         Icon(
                             imageVector = Icons.Filled.Diamond,
                             contentDescription = "Points balance",
-                            tint = NeonOrchid,
+                            tint = GoldCoin,
                             modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "$pointsBalance",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = GoldCoin
+                            ),
                             maxLines = 1,
                             softWrap = false
                         )
@@ -569,6 +595,7 @@ fun VedographiTopHeader(
             if (onHowToUseClick != null) {
                 FilledTonalIconButton(
                     onClick = onHowToUseClick,
+                    shape = CircleShape,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = MaterialTheme.colorScheme.primary
@@ -589,6 +616,7 @@ fun VedographiTopHeader(
             if (onAccountClick != null) {
                 FilledTonalIconButton(
                     onClick = onAccountClick,
+                    shape = CircleShape,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = when {
@@ -612,6 +640,7 @@ fun VedographiTopHeader(
 
             FilledTonalIconButton(
                 onClick = onToggleTheme,
+                shape = CircleShape,
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.primary
@@ -814,22 +843,29 @@ fun FontPreviewCard(
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = item.previewText,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontFamily = resolvedFontFamily,
-                    fontSize = 21.sp,
-                    lineHeight = 30.sp
-                ),
-                color = if (item.isUnlocked) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
-            )
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = item.previewText,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = resolvedFontFamily,
+                        fontSize = 21.sp,
+                        lineHeight = 30.sp
+                    ),
+                    color = if (item.isUnlocked) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))

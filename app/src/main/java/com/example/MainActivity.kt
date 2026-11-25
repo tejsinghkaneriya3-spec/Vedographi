@@ -10,6 +10,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +21,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -118,6 +121,13 @@ import com.example.ui.screens.PrivacyPolicyScreen
 import com.example.ui.screens.RewardsEarnScreen
 import com.example.ui.screens.UserProfileScreen
 import com.example.ui.screens.UsernameScreen
+import com.example.ui.theme.CrispWhite
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.FloatingNavDark
+import com.example.ui.theme.FloatingNavLight
+import com.example.ui.theme.LavenderWash
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonOrchid
 import com.example.ui.theme.RoyalViolet
 import com.example.ui.theme.VedographiTheme
 import com.example.util.AdMobManager
@@ -624,42 +634,64 @@ private fun VedographiAppShell(
             },
             bottomBar = {
                 if (!useRail && !isDetailRoute) {
-                    Column {
-                        HorizontalDivider(
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 0.dp
-                        ) {
-                            NavDestinations.forEach { dest ->
-                                val selected = currentRoute == dest.route
-                                val label = stringResource(dest.labelRes)
-                                NavigationBarItem(
-                                    selected = selected,
-                                    onClick = { navigateTo(dest.route) },
-                                    icon = {
-                                        Icon(
-                                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                            contentDescription = label
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                                    ),
-                                    modifier = Modifier.testTag("nav_${dest.route}")
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(26.dp),
+                            color = if (isDarkTheme) FloatingNavDark else FloatingNavLight,
+                            border = BorderStroke(
+                                width = 1.25.dp,
+                                brush = Brush.horizontalGradient(
+                                    listOf(
+                                        ElectricViolet.copy(alpha = 0.5f),
+                                        NeonOrchid.copy(alpha = 0.35f),
+                                        NeonCyan.copy(alpha = 0.3f),
+                                        ElectricViolet.copy(alpha = 0.5f)
+                                    )
                                 )
+                            ),
+                            shadowElevation = 14.dp,
+                            tonalElevation = 6.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            NavigationBar(
+                                containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                tonalElevation = 0.dp,
+                                windowInsets = WindowInsets(0, 0, 0, 0),
+                                modifier = Modifier.height(68.dp)
+                            ) {
+                                NavDestinations.forEach { dest ->
+                                    val selected = currentRoute == dest.route
+                                    val label = stringResource(dest.labelRes)
+                                    NavigationBarItem(
+                                        selected = selected,
+                                        onClick = { navigateTo(dest.route) },
+                                        icon = {
+                                            Icon(
+                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                                contentDescription = label
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = if (isDarkTheme) CrispWhite else MaterialTheme.colorScheme.onPrimaryContainer,
+                                            selectedTextColor = if (isDarkTheme) NeonOrchid else RoyalViolet,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                                            indicatorColor = if (isDarkTheme) RoyalViolet.copy(alpha = 0.65f) else LavenderWash
+                                        ),
+                                        modifier = Modifier.testTag("nav_${dest.route}")
+                                    )
+                                }
                             }
                         }
                     }
@@ -673,7 +705,7 @@ private fun VedographiAppShell(
             ) {
                 if (useRail && !isDetailRoute) {
                     NavigationRail(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = if (isDarkTheme) FloatingNavDark else FloatingNavLight,
                         modifier = Modifier
                             .fillMaxHeight()
                             .statusBarsPadding()
@@ -699,11 +731,11 @@ private fun VedographiAppShell(
                                     )
                                 },
                                 colors = NavigationRailItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                    selectedIconColor = if (isDarkTheme) CrispWhite else MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedTextColor = if (isDarkTheme) NeonOrchid else RoyalViolet,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                                    indicatorColor = if (isDarkTheme) RoyalViolet.copy(alpha = 0.65f) else LavenderWash
                                 )
                             )
                         }

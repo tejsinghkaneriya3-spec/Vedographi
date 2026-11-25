@@ -219,6 +219,7 @@ fun MyTextStudioScreen(
                 FilterChip(
                     selected = selected,
                     onClick = { onSelectStudioTab(idx) },
+                    shape = RoundedCornerShape(50),
                     label = {
                         Text(
                             text = label,

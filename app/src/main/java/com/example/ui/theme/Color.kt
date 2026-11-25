@@ -46,8 +46,12 @@ val LightPlumText = Color(0xFF2A0D66)
 
 // Semantic Status & Error Tokens
 val EmeraldSuccess = Color(0xFF10B981)
+val NeonCyan = Color(0xFF00F5D4)
 val RoseHeart = Color(0xFFF43F5E)
+val VividPink = Color(0xFFF72585)
 val AmberStar = Color(0xFFF59E0B)
+val GoldCoin = Color(0xFFFFD166)
+val GoldCoinGlow = Color(0xFFFFAA00)
 val DarkError = Color(0xFFFF6B81)
 val DarkOnError = Color(0xFF3A0411)
 val DarkErrorContainer = Color(0xFF4C0D1E)
@@ -56,6 +60,18 @@ val LightError = Color(0xFFDC2626)
 val LightOnError = Color(0xFFFFFFFF)
 val LightErrorContainer = Color(0xFFFEE2E2)
 val LightOnErrorContainer = Color(0xFF7F1D1D)
+
+// Modern Glassmorphic & Floating Dock Tokens
+val GlassDarkSurface = Color(0xDB110B22)
+val GlassDarkBorder = Color(0x38B36BFF)
+val GlassLightSurface = Color(0xEEFFFFFF)
+val GlassLightBorder = Color(0x337C3AED)
+val FloatingNavDark = Color(0xF2120A24)
+val FloatingNavLight = Color(0xF7FFFFFF)
+val GradientPurplePinkStart = Color(0xFF7C3AED)
+val GradientPurplePinkEnd = Color(0xFFE879F9)
+val GradientCyanVioletStart = Color(0xFF00F5D4)
+val GradientCyanVioletEnd = Color(0xFF7C3AED)
 
 // Social Brand Tokens
 val WhatsAppGreen = Color(0xFF25D366)

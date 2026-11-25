@@ -188,7 +188,8 @@ fun FontsHomeScreen(
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Filled.Search,
-                        contentDescription = "Search fonts"
+                        contentDescription = "Search fonts",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 },
                 trailingIcon = {
@@ -223,7 +224,7 @@ fun FontsHomeScreen(
                         keyboardController?.hide()
                     }
                 ),
-                shape = RoundedCornerShape(VedographiDefaults.InputCornerRadius),
+                shape = RoundedCornerShape(50),
                 colors = VedographiDefaults.textFieldColors(),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -590,6 +591,7 @@ fun FontsHomeScreen(
                                     focusManager.clearFocus()
                                     onInputChange(phrase)
                                 },
+                                shape = RoundedCornerShape(50),
                                 label = {
                                     Text(
                                         text = phrase,
@@ -788,6 +790,7 @@ fun FontsHomeScreen(
                         FilterChip(
                             selected = waFbSafeOnly,
                             onClick = onToggleWaFbSafe,
+                            shape = RoundedCornerShape(50),
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Filled.CheckCircle,
@@ -811,6 +814,7 @@ fun FontsHomeScreen(
                     item(key = "create_custom_shortcut") {
                         AssistChip(
                             onClick = onOpenCreateCustomFont,
+                            shape = RoundedCornerShape(50),
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Filled.Tune,
@@ -834,6 +838,7 @@ fun FontsHomeScreen(
                     item(key = "earn_points_shortcut") {
                         AssistChip(
                             onClick = onOpenEarnPoints,
+                            shape = RoundedCornerShape(50),
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Filled.Diamond,
@@ -869,6 +874,7 @@ fun FontsHomeScreen(
                         FilterChip(
                             selected = selected,
                             onClick = { onSelectCategory(category) },
+                            shape = RoundedCornerShape(50),
                             leadingIcon = when (category) {
                                 FontCategory.HINDI_CALLIGRAPHY -> {
                                     {
@@ -1140,20 +1146,27 @@ private fun TrendingSpotlightCard(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = item.previewText,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = resolvedFontFamily,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = item.previewText,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = resolvedFontFamily,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
